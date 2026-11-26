@@ -1,0 +1,191 @@
+/*
+ * Nexus Wi-Fi portal — Tridex corporate design.
+ * Tokens taken from tridexdarts.com (dark theme, which the site's main pages use).
+ * Everything is local: the hotspot has no internet, so no CDN fonts or images.
+ */
+
+/* Montserrat (SIL OFL 1.1, see css/OFL.txt), Latin subset, variable weight —
+   same file the website serves. Covers äöüß and „“. */
+@font-face {
+  font-family: Montserrat;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(montserrat-latin.woff2) format("woff2");
+}
+
+:root {
+  --background: #0a0a0a;
+  --foreground: #f3efe8;
+  --card: #171717;
+  --muted: #262626;
+  --muted-foreground: #a1a1a1;
+  --border: rgba(255, 255, 255, .1);
+  --input: rgba(255, 255, 255, .15);
+  --brand: #e0202d;
+  --brand-hover: #a8141e;
+  --brand-foreground: #ffffff;
+  --radius: .75rem;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font: 16px/1.5 Montserrat, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Header bar with the logo, as on the website. */
+header {
+  width: 100%;
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+}
+header img { height: 22px; width: auto; display: block; }
+
+main { width: 100%; max-width: 440px; padding: 32px 16px 48px; }
+
+/* Small uppercase label above headings ("eyebrow"). */
+.eyebrow {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: rgba(243, 239, 232, .5);
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  line-height: 1.08;
+  font-weight: 500;
+  letter-spacing: -.03em;
+  overflow-wrap: anywhere;
+}
+h1 .brand { color: var(--brand); }
+
+.sub { color: var(--muted-foreground); margin: 0 0 28px; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+/* Network list */
+.net {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  transition: background-color .15s;
+}
+.net:last-child { border-bottom: 0; }
+.net:hover, .net:focus-visible { background: var(--muted); outline: none; }
+.net .ssid { flex: 1; font-weight: 500; overflow-wrap: anywhere; }
+.net .lock { color: var(--muted-foreground); display: inline-flex; }
+.net .chev { color: var(--muted-foreground); }
+
+/* Signal strength: four bars, filled according to the percentage. */
+.bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 16px; flex: none; }
+.bars i { width: 4px; background: var(--muted); border-radius: 1px; }
+.bars i:nth-child(1) { height: 25%; }
+.bars i:nth-child(2) { height: 50%; }
+.bars i:nth-child(3) { height: 75%; }
+.bars i:nth-child(4) { height: 100%; }
+.bars i.on { background: var(--brand); }
+
+.empty { padding: 18px; color: var(--muted-foreground); }
+
+/* Forms */
+form { display: flex; flex-direction: column; gap: 12px; }
+label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+input {
+  font: inherit;
+  padding: 13px 14px;
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) * .8);
+  background: var(--background);
+  color: var(--foreground);
+  width: 100%;
+}
+input:focus { outline: 2px solid var(--brand); outline-offset: -1px; border-color: transparent; }
+
+/* Buttons: the website's angled CTA — bold uppercase, right edge cut on the slant of the logo. */
+button, .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 36px 0 20px;
+  border: 0;
+  border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 1.15rem) 100%, 0 100%);
+  background: var(--brand);
+  color: var(--brand-foreground);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color .15s;
+}
+button:hover, .button:hover { background: var(--brand-hover); }
+button:focus-visible, .button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px #fff; }
+
+.button.secondary { background: #fff; color: var(--background); }
+.button.secondary:hover { background: rgba(255, 255, 255, .85); }
+
+.pad { padding: 18px; }
+.hint { color: var(--muted-foreground); font-size: .9rem; margin: 0 0 24px; }
+.card p { margin: 0 0 12px; }
+.card p:last-child { margin: 0; }
+strong { font-weight: 600; }
+
+details { margin-top: 8px; }
+details summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+  font-size: .9rem;
+  padding: 6px 0;
+}
+details summary:hover { color: var(--foreground); }
+details[open] summary { margin-bottom: 12px; }
+
+/* Spinner on the "connecting" page. */
+.spinner {
+  width: 28px; height: 28px; margin-bottom: 20px;
+  border: 3px solid var(--muted);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin .9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
