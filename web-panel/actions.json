@@ -1,0 +1,9 @@
+[
+  {
+    "id": "reboot",
+    "title": "Nexus neu starten",
+    "description": "Hilft, wenn etwas hängt. Dauert etwa eine Minute.",
+    "command": "echo 'Nexus startet jetzt neu. Lade diese Seite in etwa einer Minute neu.'; systemctl --no-block reboot",
+    "confirm": "Nexus jetzt neu starten? Autodarts ist dabei kurz nicht erreichbar."
+  }
+]
