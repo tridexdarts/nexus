@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+# comitup ships /etc/comitup.conf as its own conffile. Two packages cannot own
+# one file, so move comitup's copy aside to /etc/comitup.conf.distrib; this
+# package then installs /etc/comitup.conf as a link to its own config, and
+# comitup upgrades keep writing to the diverted name. Idempotent on upgrade.
+case "$1" in
+    install|upgrade)
+        dpkg-divert --package nexus-captive-portal --add --rename \
+            --divert /etc/comitup.conf.distrib /etc/comitup.conf >/dev/null
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

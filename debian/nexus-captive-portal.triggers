@@ -1,0 +1,3 @@
+# comitup's stock template directory is the bind-mount target in the
+# comitup-web drop-in; regenerate the drop-in whenever comitup changes it.
+interest-noawait /usr/share/comitup

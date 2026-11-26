@@ -1,0 +1,3 @@
+captive-portal/bin/nexus-comitup-callback usr/sbin
+captive-portal/etc/comitup.conf usr/share/nexus
+captive-portal/templates/* usr/share/nexus/comitup-templates

@@ -1,0 +1,23 @@
+#!/bin/sh
+set -e
+
+DROPIN_DIR=/etc/systemd/system/comitup-web.service.d
+
+case "$1" in
+    remove|abort-install|disappear)
+        # Our /etc/comitup.conf link is gone by now; give comitup its own file back.
+        dpkg-divert --package nexus-captive-portal --remove --rename \
+            --divert /etc/comitup.conf.distrib /etc/comitup.conf >/dev/null
+        rm -f "$DROPIN_DIR/nexus-templates.conf"
+        rmdir "$DROPIN_DIR" 2>/dev/null || true
+        rm -rf /var/lib/nexus-captive-portal
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload || true
+            deb-systemd-invoke try-restart comitup.service comitup-web.service >/dev/null || true
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
