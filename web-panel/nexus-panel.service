@@ -1,0 +1,23 @@
+[Unit]
+Description=Tridex Nexus panel (buttons for predefined commands, http://<board-ip>:8080/)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/lib/nexus-panel/nexus-panel.py \
+    --port 8080 \
+    --actions /etc/nexus/actions.json \
+    --static /usr/share/nexus-panel/static
+# Root, so actions can install software. The page can only run what is in
+# /etc/nexus/actions.json, which only root can edit.
+Restart=on-failure
+RestartSec=3
+# Without this, stopping the service would also kill a running action
+# (e.g. an apt install) halfway; let actions finish in their own session.
+KillMode=process
+
+# The setup hotspot (comitup, 10.41.0.0/24) is open: nobody on it may reach
+# the panel. Enforced by the kernel (cgroup BPF) on this service's sockets.
+IPAddressDeny=10.41.0.0/24
+
+[Install]
+WantedBy=multi-user.target
