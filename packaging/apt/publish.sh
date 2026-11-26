@@ -6,6 +6,8 @@
 # <repo-dir> is a checkout of the apt repository (served by GitHub Pages).
 # Every version stays in the pool, so "apt install nexus=<old version>" works;
 # to drop one, delete its file from pool/ and run this script without debs.
+# Each package goes to the component its Section names, as in Debian:
+# "contrib/net" -> contrib, "net" -> main.
 #
 # Environment:
 #   SUITE           distribution codename (default: trixie)
@@ -18,12 +20,17 @@ set -eu
 REPO=$(cd "$1" && pwd); shift
 SUITE=${SUITE:-trixie}
 ARCHITECTURES=${ARCHITECTURES:-arm64}
-COMPONENT=main
+COMPONENTS="main contrib"
 HERE=$(cd "$(dirname "$0")" && pwd)
 
 for deb in "$@"; do
     pkg=$(dpkg-deb -f "$deb" Package)
-    dest="$REPO/pool/$SUITE/$COMPONENT/$pkg/$(basename "$deb")"
+    case $(dpkg-deb -f "$deb" Section) in
+        contrib/*) component=contrib ;;
+        */*)       echo "error: $(basename "$deb"): component not in COMPONENTS ($COMPONENTS)" >&2; exit 1 ;;
+        *)         component=main ;;
+    esac
+    dest="$REPO/pool/$SUITE/$component/$pkg/$(basename "$deb")"
     if [ -e "$dest" ]; then
         # A published version must never change: clients would see a hash mismatch.
         if cmp -s "$deb" "$dest"; then
@@ -40,12 +47,16 @@ done
 cd "$REPO"
 dist=dists/$SUITE
 rm -f "$dist/Release" "$dist/InRelease" "$dist/Release.gpg"
-for arch in $ARCHITECTURES; do
-    dir=$dist/$COMPONENT/binary-$arch
-    mkdir -p "$dir"
-    # Paths in Packages are relative to the repo root, hence run from there.
-    apt-ftparchive --arch "$arch" packages "pool/$SUITE/$COMPONENT" > "$dir/Packages"
-    gzip -9nkf "$dir/Packages"
+for component in $COMPONENTS; do
+    # An empty component still gets (empty) indices, so apt finds them.
+    mkdir -p "pool/$SUITE/$component"
+    for arch in $ARCHITECTURES; do
+        dir=$dist/$component/binary-$arch
+        mkdir -p "$dir"
+        # Paths in Packages are relative to the repo root, hence run from there.
+        apt-ftparchive --arch "$arch" packages "pool/$SUITE/$component" > "$dir/Packages"
+        gzip -9nkf "$dir/Packages"
+    done
 done
 
 apt-ftparchive \
@@ -54,7 +65,7 @@ apt-ftparchive \
     -o APT::FTPArchive::Release::Suite="$SUITE" \
     -o APT::FTPArchive::Release::Codename="$SUITE" \
     -o APT::FTPArchive::Release::Architectures="$ARCHITECTURES" \
-    -o APT::FTPArchive::Release::Components="$COMPONENT" \
+    -o APT::FTPArchive::Release::Components="$COMPONENTS" \
     -o APT::FTPArchive::Release::Description="Tridex Nexus board software" \
     release "$dist" > "$dist/Release.new"
 mv "$dist/Release.new" "$dist/Release"
@@ -68,7 +79,7 @@ gpg "$@" --armor --detach-sign --output "$dist/Release.gpg" "$dist/Release"
 # Bootstrap files at stable URLs: the key for manual checks, the newest keyring
 # package for first-time setup (see index.html).
 cp "$HERE/nexus-archive-keyring.asc" nexus-archive-keyring.asc
-newest=$(ls pool/"$SUITE"/$COMPONENT/nexus-archive-keyring/*.deb 2>/dev/null | sort -V | tail -n1)
+newest=$(ls pool/"$SUITE"/main/nexus-archive-keyring/*.deb 2>/dev/null | sort -V | tail -n1)
 [ -n "$newest" ] && cp "$newest" nexus-archive-keyring.deb
 cp "$HERE/index.html" index.html
 touch .nojekyll

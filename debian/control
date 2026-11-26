@@ -1,5 +1,6 @@
 Source: nexus
-Section: net
+# The source goes where its least free binary goes (nexus-web-panel: contrib).
+Section: contrib/net
 Priority: optional
 Maintainer: Carsten Wesp <carsten.wesp@online.de>
 Build-Depends: debhelper-compat (= 13)
@@ -7,12 +8,14 @@ Build-Depends-Indep: gnupg
 # nexus-web-terminal downloads the pinned ttyd release (debian/rules).
 Build-Depends-Arch: curl,
                     ca-certificates
-Standards-Version: 4.7.0
+Standards-Version: 4.7.4
 Homepage: https://github.com/tridexdarts/nexus
+Vcs-Browser: https://github.com/tridexdarts/nexus
 Vcs-Git: https://github.com/tridexdarts/nexus.git
 Rules-Requires-Root: no
 
 Package: nexus
+Section: contrib/metapackages
 Architecture: all
 Depends: nexus-captive-portal (= ${source:Version}),
          nexus-web-panel (= ${source:Version}),
@@ -26,6 +29,7 @@ Description: Tridex Nexus board software (metapackage)
  apt.
 
 Package: nexus-captive-portal
+Section: net
 Architecture: all
 # preinst diverts comitup's conffile /etc/comitup.conf; that only works once
 # comitup is fully configured, which plain Depends does not guarantee.
@@ -43,6 +47,8 @@ Description: Wi-Fi setup hotspot and captive portal for the Tridex Nexus PCB
  to NetworkManager.
 
 Package: nexus-web-panel
+# contrib: free itself, but runs Autodarts, which is not free software.
+Section: contrib/net
 Architecture: all
 Depends: python3,
          libcrypt1,
@@ -57,6 +63,7 @@ Description: Web panel for running commands on the Tridex Nexus PCB
  the service nexus-autodarts@<user>, started and enabled from the panel.
 
 Package: nexus-web-terminal
+Section: net
 Architecture: arm64
 Depends: login,
          ${misc:Depends}
@@ -68,6 +75,7 @@ Description: Browser terminal for the Tridex Nexus PCB
  static build in /usr/lib/nexus-web-terminal/.
 
 Package: nexus-archive-keyring
+Section: misc
 Architecture: all
 Multi-Arch: foreign
 Depends: ${misc:Depends}

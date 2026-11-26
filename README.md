@@ -34,3 +34,10 @@ sudo apt install build-essential devscripts equivs
 sudo mk-build-deps -i -r debian/control
 dpkg-buildpackage -us -uc -b          # .debs land in the parent directory
 ```
+
+## License
+
+Copyright 2026 Tridex. Licensed under the GNU General Public License, version 3
+or (at your option) any later version; see [LICENSE](LICENSE). Bundled
+third-party parts (the Montserrat font, ttyd) keep their own licenses, listed
+in [debian/copyright](debian/copyright).

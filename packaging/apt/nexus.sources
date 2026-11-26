@@ -2,5 +2,5 @@
 Types: deb
 URIs: https://tridexdarts.github.io/nexus-apt/
 Suites: trixie
-Components: main
+Components: main contrib
 Signed-By: /usr/share/keyrings/nexus-archive-keyring.gpg

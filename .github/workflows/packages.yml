@@ -34,6 +34,27 @@ jobs:
           if [ "$GITHUB_REF_NAME" != "v$v" ]; then
             echo "::error::tag $GITHUB_REF_NAME does not match debian/changelog version $v"; exit 1
           fi
+          if [ "$(dpkg-parsechangelog -S Distribution)" = UNRELEASED ]; then
+            echo "::error::debian/changelog $v is still UNRELEASED; finalize it with dch -r"; exit 1
+          fi
+
+      - name: Give untagged builds a snapshot version
+        # Debian-style snapshot versions, so a test build never carries the
+        # version of a release: while the top changelog entry is UNRELEASED
+        # (work towards that version) "0.2.0~git…" sorts before 0.2.0; on top
+        # of a released entry "0.1.0+git…" sorts after 0.1.0 and before the
+        # next release. Only the build tree is changed, nothing is committed.
+        if: github.ref_type != 'tag'
+        env:
+          DEBFULLNAME: Nexus CI
+          DEBEMAIL: ci@invalid
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          v=$(dpkg-parsechangelog -S Version)
+          if [ "$(dpkg-parsechangelog -S Distribution)" = UNRELEASED ]; then sep='~'; else sep='+'; fi
+          snap="$v${sep}git$(TZ=UTC0 git log -1 --format=%cd --date=format-local:%Y%m%d.%H%M%S).$(git rev-parse --short=7 HEAD)"
+          dch -b -v "$snap" -D UNRELEASED "Snapshot build of $(git rev-parse HEAD)."
+          echo "Building $snap"
 
       - name: Install build dependencies
         run: mk-build-deps -i -r -t 'apt-get -y --no-install-recommends' debian/control

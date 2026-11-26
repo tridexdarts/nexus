@@ -23,8 +23,8 @@ github.com/tridexdarts/nexus        source (this repository); CI builds on every
 github.com/tridexdarts/nexus-apt    apt repository, served by Pages at
                                     https://tridexdarts.github.io/nexus-apt/
   dists/trixie/{InRelease,Release,Release.gpg}
-  dists/trixie/main/binary-arm64/Packages(.gz)
-  pool/trixie/main/<package>/<package>_<version>_<arch>.deb
+  dists/trixie/{main,contrib}/binary-arm64/Packages(.gz)
+  pool/trixie/{main,contrib}/<package>/<package>_<version>_<arch>.deb
   nexus-archive-keyring.deb         newest keyring package, for first-time setup
   nexus-archive-keyring.asc         public key
   index.html                        setup instructions
@@ -34,6 +34,12 @@ The index is built with `apt-ftparchive` by [publish.sh](publish.sh). Every
 version stays in the pool, so `apt install nexus=0.1.0` can roll a board back.
 To prune, delete files from `pool/` in nexus-apt and run `publish.sh` with no
 `.deb` arguments.
+
+The components follow Debian's archive areas, and each package's `Section`
+in [debian/control](../../debian/control) decides where it goes. Everything
+is free software (GPL-3+). `nexus-web-panel` runs the proprietary Autodarts
+client, so it is in **contrib**, and the `nexus` metapackage depends on it,
+so it is in contrib as well. The other packages are in **main**.
 
 ## One-time setup
 
@@ -125,7 +131,11 @@ Once the boards run a Debian release that has ttyd (forky has it), replace the
 download with `Depends: ttyd`.
 
 To try an unreleased build on a board, copy the `.deb`s over and
-`sudo apt install ./*.deb`.
+`sudo apt install ./*.deb`. CI builds without a tag get a snapshot version,
+so they never pass for a release: `0.2.0~git<date>.<commit>` while the top
+changelog entry is `UNRELEASED` (sorts before 0.2.0), otherwise
+`0.1.0+git<date>.<commit>` (after 0.1.0, before the next release). A board
+moves on to the real release with the next `apt upgrade`.
 
 ## What the captive-portal package does to the system
 
