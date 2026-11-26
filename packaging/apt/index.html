@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -19,30 +19,30 @@
 </style>
 </head>
 <body>
-<h1>Tridex Nexus – apt-Repository</h1>
-<p>Pakete für das Nexus-Board (Radxa CM3, Debian trixie, arm64).</p>
+<h1>Tridex Nexus – apt repository</h1>
+<p>Packages for the Nexus board (Radxa CM3, Debian trixie, arm64).</p>
 
-<h2>Einrichten</h2>
+<h2>Setup</h2>
 <pre><code>curl -fsSLO https://tridexdarts.github.io/nexus-apt/nexus-archive-keyring.deb
 sudo apt install ./nexus-archive-keyring.deb
 sudo apt update
 sudo apt install nexus</code></pre>
-<p>Das Keyring-Paket installiert den Signaturschlüssel und
-<code>/etc/apt/sources.list.d/nexus.sources</code>. Danach kommen Updates mit
+<p>The keyring package installs the signing key and
+<code>/etc/apt/sources.list.d/nexus.sources</code>. After that, updates arrive with
 <code>sudo apt upgrade</code>.</p>
-<p>Die Installation über SSH per Kabel (eth0) ausführen: <code>nexus-captive-portal</code>
-übergibt wlan0 an NetworkManager, eine WLAN-Sitzung kann dabei abreißen.</p>
+<p>Run the installation over SSH on Ethernet (eth0): <code>nexus-captive-portal</code>
+hands wlan0 over to NetworkManager, which can drop a Wi-Fi session.</p>
 
-<h2>Pakete</h2>
+<h2>Packages</h2>
 <ul>
-  <li><code>nexus</code> – Metapaket, installiert alles Folgende</li>
-  <li><code>nexus-captive-portal</code> – Hotspot mit Captive Portal (comitup)</li>
-  <li><code>nexus-web-panel</code> – Befehle per Browser, Port 8080</li>
-  <li><code>nexus-web-terminal</code> – Terminal im Browser (ttyd), Port 7681</li>
-  <li><code>nexus-archive-keyring</code> – Schlüssel und apt-Quelle</li>
+  <li><code>nexus</code> – metapackage, installs everything below</li>
+  <li><code>nexus-captive-portal</code> – hotspot with captive portal (comitup)</li>
+  <li><code>nexus-web-panel</code> – run commands from the browser, port 8080</li>
+  <li><code>nexus-web-terminal</code> – terminal in the browser (ttyd), port 7681</li>
+  <li><code>nexus-archive-keyring</code> – signing key and apt source</li>
 </ul>
 
-<h2>Schlüssel</h2>
+<h2>Signing key</h2>
 <p><a href="nexus-archive-keyring.asc">nexus-archive-keyring.asc</a></p>
 </body>
 </html>
