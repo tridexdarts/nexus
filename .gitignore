@@ -1,0 +1,12 @@
+.DS_Store
+*.swp
+
+# dpkg-buildpackage output (see packaging/apt/README.md)
+/build/
+/debian/.debhelper/
+/debian/debhelper-build-stamp
+/debian/files
+/debian/*.substvars
+/debian/nexus/
+/debian/nexus-*/
+/debian/tmp/
