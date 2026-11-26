@@ -1,0 +1,29 @@
+#!/bin/sh
+# comitup external callback: reboot once after the board was provisioned via the portal.
+#
+# comitup calls this with HOTSPOT, CONNECTING or CONNECTED, running as the
+# script's owner — it must be owned by root to be allowed to reboot.
+#
+# A plain "reboot on CONNECTED" would loop forever: after the reboot the board
+# joins the saved network and reports CONNECTED again. So the reboot only happens
+# if this boot went through the hotspot first. The marker lives in /run, which
+# is a tmpfs and therefore empty after every boot.
+
+MARKER=/run/nexus-provisioning-hotspot
+
+case "$1" in
+  HOTSPOT)
+    touch "$MARKER"
+    logger -t nexus-comitup "hotspot up, waiting for provisioning"
+    ;;
+  CONNECTED)
+    if [ -e "$MARKER" ]; then
+      rm -f "$MARKER"
+      logger -t nexus-comitup "provisioned via portal, rebooting"
+      # --no-block: comitup waits for this script, so do not hold it up.
+      systemctl --no-block reboot
+    fi
+    ;;
+esac
+
+exit 0
