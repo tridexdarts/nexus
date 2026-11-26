@@ -1,0 +1,34 @@
+#!/bin/sh
+set -e
+
+# Boards set up with the old web-panel/install.sh carry the unit in
+# /etc/systemd/system, which would shadow the packaged one in /usr/lib and keep
+# starting the old /usr/local copy. Stop it and take it out of the way;
+# dh_installsystemd (postinst) then enables and starts the packaged unit.
+case "$1" in
+    install|upgrade)
+        if [ -f /etc/systemd/system/nexus-panel.service ] && [ ! -L /etc/systemd/system/nexus-panel.service ]; then
+            if [ -d /run/systemd/system ]; then
+                systemctl stop nexus-panel.service >/dev/null 2>&1 || true
+                systemctl disable nexus-panel.service >/dev/null 2>&1 || true
+            fi
+            rm -f /etc/systemd/system/nexus-panel.service \
+                  /etc/systemd/system/multi-user.target.wants/nexus-panel.service
+            if [ -d /run/systemd/system ]; then
+                systemctl daemon-reload || true
+            fi
+        fi
+        # Same for the Autodarts template. Enabled instances keep their
+        # .wants links; systemd resolves those by name to the packaged unit.
+        if [ -f /etc/systemd/system/nexus-autodarts@.service ] && [ ! -L /etc/systemd/system/nexus-autodarts@.service ]; then
+            rm -f /etc/systemd/system/nexus-autodarts@.service
+            if [ -d /run/systemd/system ]; then
+                systemctl daemon-reload || true
+            fi
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

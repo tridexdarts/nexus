@@ -1,0 +1,5 @@
+# The panel shares the captive portal's look and is used offline; it serves its own font.
+nexus-web-panel: font-in-non-font-package [usr/share/nexus-panel/static/css/montserrat-latin.woff2]
+nexus-web-panel: woff-font-in-wrong-dir [usr/share/nexus-panel/static/css/montserrat-latin.woff2]
+# preinst stops and disables a unit left in /etc by the old install.sh.
+nexus-web-panel: maintainer-script-calls-systemctl *

@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = configure ]; then
+    # The buttons belong to the board's admin: install the default once and
+    # never touch the file again. Not a conffile on purpose — dpkg would ask
+    # about a locally edited one, and an "apt upgrade" started from the panel
+    # itself or by unattended-upgrades has no terminal to answer.
+    if [ ! -e /etc/nexus/actions.json ]; then
+        install -d -m 0755 /etc/nexus
+        install -m 0644 /usr/share/nexus-panel/actions.json /etc/nexus/actions.json
+    fi
+
+    # Leftovers of the old web-panel/install.sh; the package now lives in /usr.
+    rm -rf /usr/local/lib/nexus-panel /usr/local/share/nexus-panel
+fi
+
+#DEBHELPER#
+
+exit 0

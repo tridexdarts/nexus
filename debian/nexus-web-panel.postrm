@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = purge ]; then
+    rm -f /etc/nexus/actions.json
+    rmdir /etc/nexus 2>/dev/null || true
+fi
+
+#DEBHELPER#
+
+exit 0

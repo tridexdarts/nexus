@@ -1,0 +1,13 @@
+web-panel/nexus-panel.py usr/lib/nexus-panel
+web-panel/nexus-panel.service usr/lib/systemd/system
+# Template, not enabled on install: the panel enables it per user.
+web-panel/nexus-autodarts@.service usr/lib/systemd/system
+web-panel/actions.json usr/share/nexus-panel
+web-panel/static/index.html usr/share/nexus-panel/static
+web-panel/static/css/panel.css usr/share/nexus-panel/static/css
+# Same look as the captive portal: its stylesheet, font and logo.
+captive-portal/templates/css/portal.css usr/share/nexus-panel/static/css
+captive-portal/templates/css/montserrat-latin.woff2 usr/share/nexus-panel/static/css
+captive-portal/templates/css/OFL.txt usr/share/nexus-panel/static/css
+captive-portal/templates/images/logo.svg usr/share/nexus-panel/static/img
+captive-portal/templates/images/icon.svg usr/share/nexus-panel/static/img
