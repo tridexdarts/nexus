@@ -1,0 +1,25 @@
+[Unit]
+Description=Tridex Nexus browser terminal (ttyd, http://<board-ip>:7681/)
+After=network.target
+
+[Service]
+# ttyd serves one page: a terminal running "login", so users sign in with a
+# normal system account. It has to run as root to start login.
+ExecStart=/usr/lib/nexus-web-terminal/ttyd \
+    --port 7681 \
+    --writable \
+    --check-origin \
+    --max-clients 3 \
+    -t "titleFixed=Tridex Nexus Terminal" \
+    -t fontSize=16 \
+    -t disableLeaveAlert=true \
+    login
+Restart=on-failure
+RestartSec=3
+
+# The setup hotspot (comitup, 10.41.0.0/24) is open: nobody on it may reach
+# the terminal. Enforced by the kernel (cgroup BPF) on this service's sockets.
+IPAddressDeny=10.41.0.0/24
+
+[Install]
+WantedBy=multi-user.target
