@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tridex Nexus apt</title>
+<style>
+  :root { --bg: #fff; --fg: #171717; --muted: #666; --code: #f2f2f2; --accent: #e0202d; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0a0a0a; --fg: #ededed; --muted: #a3a3a3; --code: #171717; }
+  }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, sans-serif;
+         max-width: 44rem; margin: 0 auto; padding: 2rem 16px; }
+  h1 { font-size: 1.5rem; border-left: 4px solid var(--accent); padding-left: .6rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; }
+  pre { background: var(--code); padding: .9rem 1rem; border-radius: .5rem; overflow-x: auto; }
+  p, li { color: var(--muted); }
+  code { font-size: .92em; }
+</style>
+</head>
+<body>
+<h1>Tridex Nexus – apt-Repository</h1>
+<p>Pakete für das Nexus-Board (Radxa CM3, Debian trixie, arm64).</p>
+
+<h2>Einrichten</h2>
+<pre><code>curl -fsSLO https://dreide.github.io/nexus-apt/nexus-archive-keyring.deb
+sudo apt install ./nexus-archive-keyring.deb
+sudo apt update
+sudo apt install nexus</code></pre>
+<p>Das Keyring-Paket installiert den Signaturschlüssel und
+<code>/etc/apt/sources.list.d/nexus.sources</code>. Danach kommen Updates mit
+<code>sudo apt upgrade</code>.</p>
+<p>Die Installation über SSH per Kabel (eth0) ausführen: <code>nexus-captive-portal</code>
+übergibt wlan0 an NetworkManager, eine WLAN-Sitzung kann dabei abreißen.</p>
+
+<h2>Pakete</h2>
+<ul>
+  <li><code>nexus</code> – Metapaket, installiert alles Folgende</li>
+  <li><code>nexus-captive-portal</code> – Hotspot mit Captive Portal (comitup)</li>
+  <li><code>nexus-web-panel</code> – Befehle per Browser, Port 8080</li>
+  <li><code>nexus-web-terminal</code> – Terminal im Browser (ttyd), Port 7681</li>
+  <li><code>nexus-archive-keyring</code> – Schlüssel und apt-Quelle</li>
+</ul>
+
+<h2>Schlüssel</h2>
+<p><a href="nexus-archive-keyring.asc">nexus-archive-keyring.asc</a></p>
+</body>
+</html>

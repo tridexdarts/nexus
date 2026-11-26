@@ -1,0 +1,2 @@
+# Third-party repository: shipping its own apt source is the point of this package.
+nexus-archive-keyring: package-installs-apt-sources [etc/apt/sources.list.d/nexus.sources]
