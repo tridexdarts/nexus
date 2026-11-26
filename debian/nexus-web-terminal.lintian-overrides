@@ -1,0 +1,5 @@
+# ttyd is not in Debian trixie; the package carries upstream's static build on purpose.
+nexus-web-terminal: statically-linked-binary [usr/lib/nexus-web-terminal/ttyd]
+nexus-web-terminal: embedded-library * [usr/lib/nexus-web-terminal/ttyd]
+# preinst stops and disables a unit left in /etc by the old install.sh.
+nexus-web-terminal: maintainer-script-calls-systemctl *

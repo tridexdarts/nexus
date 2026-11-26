@@ -1,0 +1,2 @@
+build/ttyd usr/lib/nexus-web-terminal
+web-terminal/nexus-web-terminal.service usr/lib/systemd/system

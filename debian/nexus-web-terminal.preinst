@@ -1,0 +1,26 @@
+#!/bin/sh
+set -e
+
+# Boards set up with the old web-terminal/install.sh carry the unit in
+# /etc/systemd/system, which would shadow the packaged one in /usr/lib and keep
+# starting the old /usr/local copy. Stop it and take it out of the way;
+# dh_installsystemd (postinst) then enables and starts the packaged unit.
+case "$1" in
+    install|upgrade)
+        if [ -f /etc/systemd/system/nexus-web-terminal.service ] && [ ! -L /etc/systemd/system/nexus-web-terminal.service ]; then
+            if [ -d /run/systemd/system ]; then
+                systemctl stop nexus-web-terminal.service >/dev/null 2>&1 || true
+                systemctl disable nexus-web-terminal.service >/dev/null 2>&1 || true
+            fi
+            rm -f /etc/systemd/system/nexus-web-terminal.service \
+                  /etc/systemd/system/multi-user.target.wants/nexus-web-terminal.service
+            if [ -d /run/systemd/system ]; then
+                systemctl daemon-reload || true
+            fi
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

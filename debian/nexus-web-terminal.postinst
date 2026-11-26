@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+
+# Leftover of the old web-terminal/install.sh; the package carries its own
+# ttyd in /usr/lib/nexus-web-terminal.
+if [ "$1" = configure ]; then
+    rm -f /usr/local/bin/ttyd
+fi
+
+#DEBHELPER#
+
+exit 0
