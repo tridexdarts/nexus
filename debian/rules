@@ -1,0 +1,39 @@
+#!/usr/bin/make -f
+
+# Public half of the key that signs the apt repository; see packaging/apt/README.md.
+KEYRING_ASC := packaging/apt/nexus-archive-keyring.asc
+
+# ttyd is not in Debian trixie: take the upstream static build, pinned by
+# SHA-256. To update, change both from the release's SHA256SUMS.
+TTYD_VERSION := 1.7.7
+TTYD_SHA256  := b38acadd89d1d396a0f5649aa52c539edbad07f4bc7348b27b4f4b7219dd4165
+TTYD_URL     := https://github.com/tsl0922/ttyd/releases/download/$(TTYD_VERSION)/ttyd.aarch64
+
+%:
+	dh $@
+
+override_dh_auto_build-indep:
+	@test -f $(KEYRING_ASC) || { echo "$(KEYRING_ASC) is missing; see packaging/apt/README.md" >&2; exit 1; }
+	mkdir -p -m 700 build/gnupg
+	gpg --homedir build/gnupg --batch --dearmor < $(KEYRING_ASC) > build/nexus-archive-keyring.gpg
+
+override_dh_auto_build-arch:
+	mkdir -p build
+	curl -fsSL -o build/ttyd.download $(TTYD_URL)
+	echo "$(TTYD_SHA256)  build/ttyd.download" | sha256sum -c --quiet
+	install -m 0755 build/ttyd.download build/ttyd
+
+override_dh_auto_clean:
+	rm -rf build
+
+# ttyd arrives stripped and statically linked: nothing to strip, no shared
+# libraries to depend on. Skipping it also keeps these tools from needing an
+# aarch64 objdump/strip when building for arm64 on an x86 machine.
+override_dh_strip:
+	dh_strip -Xttyd
+override_dh_dwz:
+	dh_dwz -Xttyd
+override_dh_makeshlibs:
+	dh_makeshlibs -Xttyd
+override_dh_shlibdeps:
+	dh_shlibdeps -Xttyd

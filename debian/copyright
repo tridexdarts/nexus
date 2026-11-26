@@ -1,0 +1,37 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: nexus
+Source: https://github.com/DreiDe/nexus
+Comment: nexus-web-terminal ships the unmodified upstream static build of ttyd
+ (https://github.com/tsl0922/ttyd), downloaded at build time by debian/rules.
+ It statically links libwebsockets, libuv, json-c, mbedtls and zlib.
+
+Files: *
+Copyright: 2026 Tridex
+License: proprietary
+ All rights reserved.
+
+Files: captive-portal/templates/css/montserrat-latin.woff2
+Copyright: 2011 The Montserrat Project Authors
+License: OFL-1.1
+ See /usr/share/nexus/comitup-templates/css/OFL.txt.
+
+Files: usr/lib/nexus-web-terminal/ttyd
+Copyright: 2016 Shuanglei Tao <tsl0922@gmail.com>
+License: Expat
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to deal
+ in the Software without restriction, including without limitation the rights
+ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ copies of the Software, and to permit persons to whom the Software is
+ furnished to do so, subject to the following conditions:
+ .
+ The above copyright notice and this permission notice shall be included in
+ all copies or substantial portions of the Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.

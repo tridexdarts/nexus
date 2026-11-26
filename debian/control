@@ -1,0 +1,76 @@
+Source: nexus
+Section: net
+Priority: optional
+Maintainer: Carsten Wesp <carsten.wesp@online.de>
+Build-Depends: debhelper-compat (= 13)
+Build-Depends-Indep: gnupg
+# nexus-web-terminal downloads the pinned ttyd release (debian/rules).
+Build-Depends-Arch: curl,
+                    ca-certificates
+Standards-Version: 4.7.0
+Homepage: https://github.com/DreiDe/nexus
+Vcs-Git: https://github.com/DreiDe/nexus.git
+Rules-Requires-Root: no
+
+Package: nexus
+Architecture: all
+Depends: nexus-captive-portal (= ${source:Version}),
+         nexus-web-panel (= ${source:Version}),
+         nexus-web-terminal (= ${source:Version}),
+         nexus-archive-keyring,
+         ${misc:Depends}
+Description: Tridex Nexus board software (metapackage)
+ Installs everything the Nexus PCB runs: the Wi-Fi setup hotspot with its
+ captive portal, the web panel and the browser terminal, and the signing key
+ of the Nexus apt repository, so the board keeps receiving updates through
+ apt.
+
+Package: nexus-captive-portal
+Architecture: all
+# preinst diverts comitup's conffile /etc/comitup.conf; that only works once
+# comitup is fully configured, which plain Depends does not guarantee.
+Pre-Depends: comitup
+Depends: network-manager,
+         dbus,
+         ${misc:Depends}
+Description: Wi-Fi setup hotspot and captive portal for the Tridex Nexus PCB
+ When the board cannot join a known network it opens the hotspot
+ "Nexus-<nnn>" with a captive portal that lists nearby networks and takes
+ the password. Built on comitup; this package provides
+ its configuration and the Nexus-branded portal pages.
+ .
+ Replaces /etc/comitup.conf (via dpkg-divert) and hands wlan0 from ifupdown
+ to NetworkManager.
+
+Package: nexus-web-panel
+Architecture: all
+Depends: python3,
+         libcrypt1,
+         ${misc:Depends}
+Description: Web panel for running commands on the Tridex Nexus PCB
+ A web page on port 8080 for users who have never seen a terminal: log in
+ with a board account (sudo group), paste a command or press a button for a
+ predefined one, and watch the output live. Buttons are defined in
+ /etc/nexus/actions.json. Unreachable from the open setup hotspot.
+ .
+ Also runs Autodarts (installed by the user with the official installer) as
+ the service nexus-autodarts@<user>, started and enabled from the panel.
+
+Package: nexus-web-terminal
+Architecture: arm64
+Depends: login,
+         ${misc:Depends}
+Description: Browser terminal for the Tridex Nexus PCB
+ ttyd on port 7681 running "login", so users sign in with a system account
+ and get a shell in the browser. Unreachable from the open setup hotspot.
+ .
+ ttyd is not in Debian trixie; this package carries the pinned upstream
+ static build in /usr/lib/nexus-web-terminal/.
+
+Package: nexus-archive-keyring
+Architecture: all
+Multi-Arch: foreign
+Depends: ${misc:Depends}
+Description: Signing key and apt source of the Tridex Nexus repository
+ Installs the OpenPGP key that signs the Nexus apt repository and the apt
+ source pointing at it, so "apt upgrade" picks up new Nexus releases.
