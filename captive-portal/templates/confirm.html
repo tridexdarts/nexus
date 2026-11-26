@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Nexus · WLAN einrichten</title>
+  <link rel="icon" href="img/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/portal.css">
+</head>
+<body>
+<header><img src="img/logo.svg" alt="Tridex Darts" width="1104" height="192"></header>
+<main>
+  <p class="eyebrow">Nexus · WLAN-Einrichtung</p>
+  <h1>{{ ssid }}</h1>
+  <p class="sub">
+    {% if encrypted == 'encrypted' %}Gib das Passwort für dieses Netzwerk ein.{% else %}Dieses Netzwerk ist offen, ein Passwort ist nicht nötig.{% endif %}
+  </p>
+
+  {#
+    comitup passes: ssid, ssid_encoded, encrypted ("encrypted"/"unencrypted"),
+    mode ("single" = one radio, hotspot goes down; "router" = two radios).
+    The form must POST `ssid` (URL-encoded) and `password` to /connect.
+  #}
+  <div class="card pad">
+    <form action="connect" method="POST">
+      <input type="hidden" name="ssid" value="{{ ssid_encoded }}">
+      {% if encrypted == 'encrypted' %}
+        <label for="password">Passwort</label>
+        <input id="password" type="password" name="password" minlength="8" autocomplete="off" autofocus>
+      {% else %}
+        <input type="hidden" name="password" value="">
+      {% endif %}
+      <div><button type="submit">Verbinden</button></div>
+    </form>
+  </div>
+
+  <p class="hint">
+    {% if mode == 'single' %}
+      Nexus beendet jetzt diesen Hotspot und verbindet sich mit „{{ ssid }}“.
+      Klappt das, startet Nexus einmal neu und ist danach im WLAN.
+      Klappt es nicht, erscheint der Hotspot nach etwa einer Minute wieder.
+    {% else %}
+      Der Hotspot bleibt bestehen. Klappt die Verbindung nicht, ist diese Seite gleich wieder erreichbar.
+    {% endif %}
+  </p>
+
+  <a class="button secondary" href="/">Zurück zur Liste</a>
+</main>
+</body>
+</html>

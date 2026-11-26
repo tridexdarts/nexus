@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Nexus · WLAN einrichten</title>
+  <link rel="icon" href="img/icon.svg" type="image/svg+xml">
+  <link rel="preload" href="css/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/portal.css">
+</head>
+<body>
+<header><img src="img/logo.svg" alt="Tridex Darts" width="1104" height="192"></header>
+<main>
+  <p class="eyebrow">Nexus · WLAN-Einrichtung</p>
+  <h1>Mit welchem WLAN soll sich <span class="brand">Nexus</span> verbinden?</h1>
+  <p class="sub">Wähle dein Netzwerk aus der Liste.</p>
+
+  {#
+    comitup passes `points`, sorted by signal strength. Each entry has:
+      ssid          – network name (auto-escaped by Jinja)
+      ssid_encoded  – URL-encoded name, used in links
+      security      – "encrypted" or "unencrypted"
+      strength      – signal in percent (0–100)
+    The list is cached from before the hotspot started; the radio cannot scan
+    while it is serving the hotspot.
+  #}
+  <div class="card">
+    {% for point in points %}
+      {% set pct = point.strength | float %}
+      <a class="net" href="confirm?ssid={{ point.ssid_encoded }}&encrypted={{ point.security }}">
+        <span class="bars" role="img" aria-label="Signal {{ pct | int }} %">
+          <i class="{{ 'on' if pct > 0 }}"></i><i class="{{ 'on' if pct >= 35 }}"></i><i class="{{ 'on' if pct >= 60 }}"></i><i class="{{ 'on' if pct >= 80 }}"></i>
+        </span>
+        <span class="ssid">{{ point.ssid }}</span>
+        {% if point.security == 'encrypted' %}
+        <span class="lock" role="img" aria-label="verschlüsselt">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        </span>
+        {% endif %}
+        <span class="chev" aria-hidden="true">›</span>
+      </a>
+    {% else %}
+      <div class="empty">Keine Netzwerke gefunden. Lade die Seite in einer Minute neu.</div>
+    {% endfor %}
+  </div>
+
+  <details>
+    <summary>Netzwerk nicht in der Liste?</summary>
+    <form action="confirm">
+      <input type="hidden" name="encrypted" value="encrypted">
+      <label for="ssid">Name des Netzwerks (SSID)</label>
+      <input id="ssid" name="ssid" required autocapitalize="off" autocorrect="off" spellcheck="false">
+      <div><button type="submit">Weiter</button></div>
+    </form>
+  </details>
+</main>
+</body>
+</html>
