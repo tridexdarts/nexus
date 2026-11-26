@@ -2,7 +2,7 @@
 
 Software for the Nexus PCB (Radxa CM3, DietPi / Debian trixie), shipped as
 Debian packages from the apt repository
-[DreiDe/nexus-apt](https://github.com/DreiDe/nexus-apt). Boards install it once
+[tridexdarts/nexus-apt](https://github.com/tridexdarts/nexus-apt). Boards install it once
 and then update with `apt upgrade`.
 
 | Directory | Contents | Package |
@@ -21,7 +21,7 @@ and then update with `apt upgrade`.
 Over Ethernet (the captive portal takes wlan0 over from ifupdown):
 
 ```bash
-curl -fsSLO https://dreide.github.io/nexus-apt/nexus-archive-keyring.deb
+curl -fsSLO https://tridexdarts.github.io/nexus-apt/nexus-archive-keyring.deb
 sudo apt install ./nexus-archive-keyring.deb
 sudo apt update
 sudo apt install nexus

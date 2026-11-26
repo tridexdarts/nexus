@@ -8,8 +8,8 @@ Build-Depends-Indep: gnupg
 Build-Depends-Arch: curl,
                     ca-certificates
 Standards-Version: 4.7.0
-Homepage: https://github.com/DreiDe/nexus
-Vcs-Git: https://github.com/DreiDe/nexus.git
+Homepage: https://github.com/tridexdarts/nexus
+Vcs-Git: https://github.com/tridexdarts/nexus.git
 Rules-Requires-Root: no
 
 Package: nexus

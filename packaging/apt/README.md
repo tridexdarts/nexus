@@ -19,9 +19,9 @@ so a board never runs a mix that was not released together.
 ## Layout
 
 ```
-github.com/DreiDe/nexus             source (this repository); CI builds on every push
-github.com/DreiDe/nexus-apt         apt repository, served by Pages at
-                                    https://dreide.github.io/nexus-apt/
+github.com/tridexdarts/nexus        source (this repository); CI builds on every push
+github.com/tridexdarts/nexus-apt    apt repository, served by Pages at
+                                    https://tridexdarts.github.io/nexus-apt/
   dists/trixie/{InRelease,Release,Release.gpg}
   dists/trixie/main/binary-arm64/Packages(.gz)
   pool/trixie/main/<package>/<package>_<version>_<arch>.deb
@@ -60,7 +60,7 @@ gpg --armor --export-secret-keys    > nexus-apt-signing.secret.asc              
 
 ### 2. apt repository
 
-1. Create the **public** repository `DreiDe/nexus-apt` with an initial commit
+1. Create the **public** repository `tridexdarts/nexus-apt` with an initial commit
    (e.g. a README; the workflow cannot check out an empty repository).
 2. Settings → Pages → *Deploy from a branch*, `main`, `/ (root)`.
 
@@ -85,7 +85,7 @@ Then delete both files.
 ## Setting up a board
 
 ```bash
-curl -fsSLO https://dreide.github.io/nexus-apt/nexus-archive-keyring.deb
+curl -fsSLO https://tridexdarts.github.io/nexus-apt/nexus-archive-keyring.deb
 sudo apt install ./nexus-archive-keyring.deb
 sudo apt update
 sudo apt install nexus

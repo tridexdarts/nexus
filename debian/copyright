@@ -1,6 +1,6 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: nexus
-Source: https://github.com/DreiDe/nexus
+Source: https://github.com/tridexdarts/nexus
 Comment: nexus-web-terminal ships the unmodified upstream static build of ttyd
  (https://github.com/tsl0922/ttyd), downloaded at build time by debian/rules.
  It statically links libwebsockets, libuv, json-c, mbedtls and zlib.

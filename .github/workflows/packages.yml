@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 env:
-  APT_REPO: DreiDe/nexus-apt
+  APT_REPO: tridexdarts/nexus-apt
 
 jobs:
   build:

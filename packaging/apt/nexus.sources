@@ -1,6 +1,6 @@
 # Tridex Nexus packages. Installed by nexus-archive-keyring.
 Types: deb
-URIs: https://dreide.github.io/nexus-apt/
+URIs: https://tridexdarts.github.io/nexus-apt/
 Suites: trixie
 Components: main
 Signed-By: /usr/share/keyrings/nexus-archive-keyring.gpg
