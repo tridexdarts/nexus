@@ -1,0 +1,13 @@
+# /etc/udev/rules.d/99-usb-gpio.rules
+
+# USB 1 (Port 5-1)
+ACTION=="add",    SUBSYSTEM=="usb", KERNELS=="5-1", ENV{DEVTYPE}=="usb_device", RUN+="/usr/local/bin/usb-gpio-trigger.sh on 5-1"
+ACTION=="remove", SUBSYSTEM=="usb", KERNELS=="5-1", ENV{DEVTYPE}=="usb_device", RUN+="/usr/local/bin/usb-gpio-trigger.sh off 5-1"
+
+# USB 2 (Port 2-1)
+ACTION=="add",    SUBSYSTEM=="usb", KERNELS=="2-1", ENV{DEVTYPE}=="usb_device", RUN+="/usr/local/bin/usb-gpio-trigger.sh on 2-1"
+ACTION=="remove", SUBSYSTEM=="usb", KERNELS=="2-1", ENV{DEVTYPE}=="usb_device", RUN+="/usr/local/bin/usb-gpio-trigger.sh off 2-1"
+
+# USB 3 (Port 3-1)
+ACTION=="add",    SUBSYSTEM=="usb", KERNELS=="3-1", ENV{DEVTYPE}=="usb_device", RUN+="/usr/local/bin/usb-gpio-trigger.sh on 3-1"
+ACTION=="remove", SUBSYSTEM=="usb", KERNELS=="3-1", ENV{DEVTYPE}=="usb_device", RUN+="/usr/local/bin/usb-gpio-trigger.sh off 3-1"
