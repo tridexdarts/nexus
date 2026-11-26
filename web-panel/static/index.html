@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Nexus · Steuerung</title>
+  <link rel="icon" href="img/icon.svg" type="image/svg+xml">
+  <link rel="preload" href="css/montserrat-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/portal.css">
+  <link rel="stylesheet" href="css/panel.css">
+</head>
+<body>
+<header><img src="img/logo.svg" alt="Tridex Darts" width="1104" height="192"></header>
+<main>
+  <p class="eyebrow">Nexus · Steuerung</p>
+
+  <!-- Login -->
+  <section id="login-view" hidden>
+    <h1>Bei <span class="brand">Nexus</span> anmelden</h1>
+    <p class="sub">Mit dem Benutzer und Passwort des Geräts.</p>
+    <form id="login-form" class="card pad">
+      <label for="user">Benutzername</label>
+      <input id="user" name="user" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" required>
+      <label for="password">Passwort</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <p id="login-error" class="error" hidden></p>
+      <div><button type="submit">Anmelden</button></div>
+    </form>
+  </section>
+
+  <!-- After login -->
+  <section id="app-view" hidden>
+    <div class="who">Angemeldet als <strong id="who"></strong> · <a href="#" id="logout">Abmelden</a></div>
+    <h1>Was soll <span class="brand">Nexus</span> tun?</h1>
+
+    <h2>Autodarts</h2>
+    <div class="card pad" id="ad-card">
+      <div class="ad-head">
+        <span class="pill" id="ad-pill">…</span>
+        <span id="ad-meta" class="ad-meta"></span>
+      </div>
+      <p id="ad-text" class="ad-text"></p>
+      <div id="ad-buttons" class="ad-buttons"></div>
+      <a href="#" id="ad-logs" class="ad-logs" hidden>Protokoll anzeigen</a>
+    </div>
+
+    <h2>Befehl ausführen</h2>
+    <form id="exec-form" class="card pad">
+      <label for="command">Befehl hier einfügen</label>
+      <textarea id="command" rows="3" autocapitalize="off" autocorrect="off" spellcheck="false"
+                placeholder="z. B. den Befehl von autodarts.com/downloads"></textarea>
+      <p class="hint small">Kopiere den Befehl von der Webseite des Herstellers und füge ihn hier ein
+         (lange tippen → Einfügen, oder Strg+V). Er läuft als Benutzer <strong class="who-name"></strong>.</p>
+      <div><button type="submit">Ausführen</button></div>
+    </form>
+
+    <section id="result" class="card pad" hidden aria-live="polite">
+      <div class="status">
+        <span class="dot" aria-hidden="true"></span>
+        <strong id="status-text"></strong>
+      </div>
+      <p id="status-title" class="hint"></p>
+      <details id="output-box" open>
+        <summary>Ausgabe</summary>
+        <pre id="output"></pre>
+      </details>
+    </section>
+
+    <h2>Schnellaktionen</h2>
+    <div class="card" id="actions">
+      <div class="empty">Lade …</div>
+    </div>
+
+
+    <p class="advanced"><a id="terminal-link" href="#">Für Fortgeschrittene: Terminal öffnen</a></p>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const ANSI = /\x1b\[[0-9;?]*[ -\/]*[@-~]|\x1b\][^\x07]*\x07|\r(?!\n)/g;
+const HDR = { "X-Nexus-Panel": "1" };
+let running = false;
+
+$("terminal-link").href = `http://${location.hostname}:7681/`;
+
+function show(view) {
+  $("login-view").hidden = view !== "login";
+  $("app-view").hidden = view !== "app";
+}
+
+function showLogin(message) {
+  show("login");
+  $("login-error").hidden = !message;
+  $("login-error").textContent = message || "";
+  $("password").value = "";
+  ($("user").value ? $("password") : $("user")).focus();
+}
+
+function showApp(user) {
+  $("who").textContent = user;
+  for (const el of document.querySelectorAll(".who-name")) el.textContent = user;
+  show("app");
+  loadAutodarts();
+  loadActions();
+}
+
+// ---- login / logout ----
+
+$("login-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const btn = ev.submitter;
+  btn.disabled = true;
+  try {
+    const res = await fetch("api/login", {
+      method: "POST",
+      headers: { ...HDR, "Content-Type": "application/json" },
+      body: JSON.stringify({ user: $("user").value, password: $("password").value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return showLogin(data.error || "Anmeldung fehlgeschlagen.");
+    showApp(data.user);
+  } catch {
+    showLogin("Nexus ist nicht erreichbar.");
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$("logout").addEventListener("click", async (ev) => {
+  ev.preventDefault();
+  await fetch("api/logout", { method: "POST", headers: HDR }).catch(() => {});
+  $("result").hidden = true;
+  $("command").value = "";
+  clearTimeout(adTimer);
+  showLogin();
+});
+
+// ---- Autodarts ----
+
+const AD_TEXT = {
+  missing: 'Autodarts ist noch nicht installiert. Kopiere auf <a href="https://autodarts.com/downloads" target="_blank" rel="noopener">autodarts.com/downloads</a> den Befehl unter „Headless“ und füge ihn unten bei „Befehl ausführen“ ein.',
+  app: "Autodarts hat einen eigenen Dienst aus der App eingerichtet. Entferne ihn, damit Nexus Autodarts steuern kann und es nicht doppelt läuft.",
+  manual: "Autodarts läuft, startet aber nach einem Neustart nicht von selbst.",
+  stopped: "Autodarts ist installiert, läuft aber gerade nicht.",
+  running: "Autodarts läuft und startet automatisch, wenn Nexus eingeschaltet wird.",
+  autostopped: "Autodarts ist gestoppt, startet aber beim nächsten Einschalten wieder automatisch.",
+  failed: "Autodarts ist abgestürzt oder startet nicht. Schau ins Protokoll.",
+};
+
+let adTimer = null;
+
+function adButton(label, onClick, secondary) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = label;
+  if (secondary) b.className = "secondary";
+  b.disabled = running;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+async function adOp(op, confirmText) {
+  if (running) return;
+  if (confirmText && !confirm(confirmText)) return;
+  setBusy(true);
+  try {
+    const res = await fetch(`api/autodarts/${op}`, { method: "POST", headers: HDR });
+    if (res.status === 401) return showLogin("Sitzung abgelaufen. Bitte melde dich erneut an.");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) alert(data.error || "Das hat nicht geklappt.");
+  } finally {
+    setBusy(false);
+    loadAutodarts();
+  }
+}
+
+async function adStream(title, op, confirmText) {
+  if (confirmText && !confirm(confirmText)) return;
+  await stream(title, `api/autodarts/${op}`, undefined, $("ad-card"));
+  loadAutodarts();
+}
+
+async function loadAutodarts() {
+  clearTimeout(adTimer);
+  if ($("app-view").hidden) return;
+  let st;
+  try {
+    const res = await fetch("api/autodarts", { cache: "no-store" });
+    if (res.status === 401) return showLogin();
+    st = await res.json();
+  } catch {
+    adTimer = setTimeout(loadAutodarts, 10000);
+    return;
+  }
+  const pill = $("ad-pill"), btns = $("ad-buttons");
+  btns.replaceChildren();
+  $("ad-meta").textContent = st.installed ? `Version ${st.version}` : "";
+  $("ad-logs").hidden = !st.installed;
+  const isActive = st.active === "active" || st.active === "activating";
+
+  let state, pillText, pillClass;
+  if (!st.installed) {
+    [state, pillText, pillClass] = ["missing", "Nicht installiert", "off"];
+  } else if (st.app_service) {
+    [state, pillText, pillClass] = ["app", "Doppelter Dienst", "warn"];
+    btns.append(adButton("App-Dienst entfernen", () => adOp("remove-app-service")));
+  } else if (st.active === "failed") {
+    [state, pillText, pillClass] = ["failed", "Fehler", "err"];
+    btns.append(adButton("Neu starten", () => adOp("restart")));
+    btns.append(adButton(st.enabled ? "Autostart aus" : "Stoppen", () => adOp(st.enabled ? "disable" : "stop"), true));
+  } else if (st.enabled) {
+    [state, pillText, pillClass] = isActive ? ["running", "Läuft", "on"] : ["autostopped", "Gestoppt", "off"];
+    btns.append(isActive ? adButton("Neu starten", () => adOp("restart")) : adButton("Starten", () => adOp("start")));
+    if (isActive) btns.append(adButton("Stoppen", () => adOp("stop"), true));
+    btns.append(adButton("Autostart aus", () => adOp("disable", "Autodarts soll beim Einschalten nicht mehr automatisch starten?"), true));
+  } else {
+    [state, pillText, pillClass] = isActive ? ["manual", "Läuft", "on"] : ["stopped", "Gestoppt", "off"];
+    btns.append(adButton("Automatisch starten", () => adOp("enable")));
+    btns.append(isActive ? adButton("Stoppen", () => adOp("stop"), true) : adButton("Nur jetzt starten", () => adOp("start"), true));
+  }
+  if (st.installed) {
+    btns.append(adButton("Aktualisieren", () => adStream("Autodarts aktualisieren", "update"), true));
+  }
+  pill.textContent = pillText;
+  pill.dataset.state = pillClass;
+  $("ad-text").innerHTML = AD_TEXT[state];   // fixed strings only, no server data
+  adTimer = setTimeout(loadAutodarts, isActive || st.busy ? 5000 : 15000);
+}
+
+$("ad-logs").addEventListener("click", async (ev) => {
+  ev.preventDefault();
+  const res = await fetch("api/autodarts/logs", { cache: "no-store" });
+  showResultAfter($("ad-card"));
+  $("status-title").textContent = "Autodarts-Protokoll (letzte Einträge)";
+  setStatus("info", "Protokoll");
+  $("output").textContent = res.ok ? (await res.text()).replace(ANSI, "") : "Konnte nicht geladen werden.";
+  $("output").scrollTop = $("output").scrollHeight;
+  $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
+
+// ---- running commands ----
+
+function setStatus(state, text) {
+  $("result").dataset.state = state;
+  $("status-text").textContent = text;
+}
+
+function setBusy(busy) {
+  running = busy;
+  for (const b of document.querySelectorAll("#app-view button")) b.disabled = busy;
+}
+
+// The output box sits right under whatever started the command.
+function showResultAfter(anchor) {
+  anchor.after($("result"));
+  $("result").hidden = false;
+}
+
+async function stream(title, url, body, anchor = $("exec-form")) {
+  if (running) return;
+  setBusy(true);
+  showResultAfter(anchor);
+  $("status-title").textContent = title;
+  $("output").textContent = "";
+  setStatus("running", "Läuft … bitte warten");
+  $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  let text = "";
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: body ? { ...HDR, "Content-Type": "application/json" } : HDR,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (res.status === 401) { showLogin("Sitzung abgelaufen. Bitte melde dich erneut an."); return; }
+    if (!res.ok) throw new Error(await res.text());
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += dec.decode(value, { stream: true });
+      $("output").textContent = text.split("\x1e")[0].replace(ANSI, "");
+      $("output").scrollTop = $("output").scrollHeight;
+    }
+    const [out, trailer] = text.split("\x1e");
+    $("output").textContent = out.replace(ANSI, "").trim() || "(keine Ausgabe)";
+    const code = trailer ? JSON.parse(trailer).exit : null;
+    if (code === 0) setStatus("ok", "Fertig");
+    else if (code === null) setStatus("error", "Verbindung abgebrochen – das Ergebnis ist unbekannt.");
+    else setStatus("error", `Fehlgeschlagen (Code ${code})`);
+  } catch (e) {
+    setStatus("error", "Fehler");
+    $("output").textContent = String(e.message || e);
+  } finally {
+    setBusy(false);
+  }
+}
+
+$("exec-form").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const command = $("command").value.trim();
+  if (!command) { $("command").focus(); return; }
+  stream("Eingefügter Befehl", "api/exec", { command }).then(loadAutodarts);
+});
+
+// Ctrl/Cmd+Enter in the box runs it; plain Enter keeps multi-line pastes intact.
+$("command").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) $("exec-form").requestSubmit();
+});
+
+async function loadActions() {
+  const box = $("actions");
+  try {
+    const res = await fetch("api/actions", { cache: "no-store" });
+    if (res.status === 401) return showLogin();
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    box.replaceChildren();
+    if (!data.length) {
+      box.innerHTML = '<div class="empty">Keine Schnellaktionen eingerichtet.</div>';
+      return;
+    }
+    for (const a of data) {
+      const row = document.createElement("div");
+      row.className = "action";
+      const text = document.createElement("div");
+      text.className = "text";
+      const t = document.createElement("strong");
+      t.textContent = a.title;
+      text.append(t);
+      if (a.description) {
+        const d = document.createElement("span");
+        d.textContent = a.description;
+        text.append(d);
+      }
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Start";
+      btn.disabled = running;
+      btn.addEventListener("click", () => {
+        if (a.confirm && !confirm(a.confirm)) return;
+        stream(a.title, `api/run/${encodeURIComponent(a.id)}`, undefined, $("actions"));
+      });
+      row.append(text, btn);
+      box.append(row);
+    }
+  } catch (e) {
+    box.innerHTML = '<div class="empty">Schnellaktionen konnten nicht geladen werden.</div>';
+    console.error(e);
+  }
+}
+
+// ---- start ----
+
+fetch("api/session", { cache: "no-store" })
+  .then((res) => (res.ok ? res.json() : Promise.reject()))
+  .then((data) => showApp(data.user))
+  .catch(() => showLogin());
+</script>
+</body>
+</html>
