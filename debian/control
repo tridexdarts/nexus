@@ -42,6 +42,7 @@ Depends: network-manager,
          python3,
          python3-dbus,
          python3-flask,
+         python3-libgpiod (>= 2),
          ${misc:Depends}
 Description: Wi-Fi setup hotspot and captive portal for the Tridex Nexus PCB
  When the board cannot join a known network it opens the hotspot
@@ -51,6 +52,10 @@ Description: Wi-Fi setup hotspot and captive portal for the Tridex Nexus PCB
  package provides its configuration and the Nexus portal, which runs as an
  unprivileged user and sets the password through a root helper that can
  set nothing else.
+ .
+ Also drives the Wi-Fi LED (blinking: setup needed, on: connected) and the
+ Wi-Fi reset button: held for 10 s it locks the admin account again,
+ deletes its SSH keys and the saved Wi-Fi networks, and reboots into setup.
  .
  Replaces /etc/comitup.conf (via dpkg-divert) and hands wlan0 from ifupdown
  to NetworkManager.

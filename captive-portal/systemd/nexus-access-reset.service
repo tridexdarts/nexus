@@ -1,0 +1,8 @@
+# Started by nexus-wifi-button when the Wi-Fi reset button is held for 10 s
+# and released. Not enabled: it never runs at boot.
+[Unit]
+Description=Nexus access reset (admin password, SSH keys, Wi-Fi), then reboot
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/nexus-access-reset

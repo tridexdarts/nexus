@@ -1,0 +1,54 @@
+#!/bin/sh
+# Reset access to the Nexus board: lock the admin account again, delete its
+# SSH keys and every saved Wi-Fi network, reboot.
+#
+# After the reboot comitup knows no Wi-Fi, opens the setup hotspot, and the
+# portal asks for a new admin password before the Wi-Fi list — as on a new
+# board. Autodarts, eth0 and everything else stay as they are.
+#
+# Started by nexus-access-reset.service, which nexus-wifi-button starts when
+# the Wi-Fi reset button is held for 10 s and released. Can also be run by
+# hand as root; it asks first when run from a terminal.
+
+set -u
+
+USER=tridex
+TAG=nexus-access-reset
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "$TAG: must run as root" >&2
+    exit 1
+fi
+
+if [ -t 0 ]; then
+    printf 'Lock %s, delete its SSH keys and all saved Wi-Fi networks, then reboot? [y/N] ' "$USER"
+    read -r answer
+    case "$answer" in y|Y|yes|j|J|ja) ;; *) echo "Aborted."; exit 1 ;; esac
+fi
+
+logger -t "$TAG" "access reset: locking $USER, deleting its SSH keys and saved Wi-Fi"
+
+# Carry on after a failed step: a half reset that still reboots into the
+# hotspot is better than none.
+if getent passwd "$USER" >/dev/null; then
+    usermod -p '*' "$USER" || logger -t "$TAG" "could not lock $USER"
+    home=$(getent passwd "$USER" | cut -d: -f6)
+    if [ -n "$home" ] && [ -d "$home/.ssh" ]; then
+        rm -f "$home/.ssh/authorized_keys" "$home/.ssh/authorized_keys2"
+    fi
+else
+    logger -t "$TAG" "no account $USER, skipping password and SSH keys"
+fi
+
+# Every Wi-Fi connection, including comitup's hotspot profile: comitup
+# recreates that on start. Ethernet profiles stay.
+nmcli -g UUID,TYPE connection show 2>/dev/null |
+while IFS=: read -r uuid type; do
+    if [ "$type" = 802-11-wireless ]; then
+        nmcli connection delete uuid "$uuid" >/dev/null ||
+            logger -t "$TAG" "could not delete Wi-Fi connection $uuid"
+    fi
+done
+
+logger -t "$TAG" "rebooting into the setup hotspot"
+systemctl --no-block reboot

@@ -20,7 +20,7 @@ boot
  │
  no
  │
- └─> hotspot "Nexus-<nnn>" + portal at http://10.41.0.1/
+ └─> hotspot "Nexus-<nnn>" + portal at http://10.41.0.1/      Wi-Fi LED blinks slowly
        │
        ├─ tridex still locked ("*")? ── yes ──> set its password first
        │
@@ -57,9 +57,36 @@ password cannot be changed through it. Only group `nexus-portal` may connect
 to `/run/nexus-initpw.sock`. Rules: 8–128 characters, no control characters.
 `/confirm` and `/connect` refuse until the password is set, so the step cannot
 be skipped by typing a URL. A board that already knows a Wi-Fi network never
-shows the portal, so it keeps `tridex` locked.
+shows the portal, so it keeps `tridex` locked until the Wi-Fi reset below.
 
 Changing a known password: `passwd` in the web terminal.
+
+## Wi-Fi LED and reset button
+
+`nexus-wifi-button.service` owns two GPIOs (pins in the unit's `Environment=`):
+
+| | Line | Level |
+|---|---|---|
+| Wi-Fi reset button | `gpiochip4` 13 (GPIO4_B5) | 0 = pressed |
+| Wi-Fi LED | `gpiochip4` 12 (GPIO4_B4) | 1 = on |
+
+| LED | Meaning |
+|---|---|
+| slow blink (1 s / 1 s) | hotspot up, setup needed |
+| on | connected to Wi-Fi |
+| off | connecting, or comitup not running; also while the button is held |
+| fast blink | button held 10 s: release now to reset |
+
+**Forgotten password:** hold the button until the LED blinks fast (10 s; also
+works when held while the board boots, it then takes longer), release.
+`nexus-access-reset.service` then locks `tridex` again (`*`), deletes its
+`~/.ssh/authorized_keys`, deletes every saved Wi-Fi network and reboots. The
+board comes up in the hotspot and the portal asks for a new password, as on a
+new board. A shorter press does nothing. Autodarts and eth0 are not touched.
+As root, `nexus-access-reset` does the same by hand.
+
+Both lines belong to the service: `sudo systemctl stop nexus-wifi-button`
+before testing them with `gpioset`/`gpioget`.
 
 ## Contents
 
@@ -71,9 +98,13 @@ Packaged as `nexus-captive-portal` (see [packaging/apt/](../packaging/apt/README
 | `templates/` | `/usr/share/nexus/comitup-templates/` | Portal pages (German) and CSS |
 | `lib/nexus-portal` | `/usr/lib/nexus-captive-portal/` | Portal web app (Flask), unprivileged |
 | `lib/nexus-initpw` | `/usr/lib/nexus-captive-portal/` | Root helper: first password of `tridex` only |
+| `lib/nexus-wifi-button` | `/usr/lib/nexus-captive-portal/` | Wi-Fi LED and reset button |
+| `bin/nexus-access-reset` | `/usr/sbin/` | Lock `tridex`, delete its SSH keys and saved Wi-Fi, reboot |
 | `bin/nexus-comitup-callback` | `/usr/sbin/` | Reboots once after provisioning via the portal |
 | `systemd/comitup-web.service.d/nexus-portal.conf` | `/usr/lib/systemd/system/…` | comitup-web runs `nexus-portal` as user `nexus-portal` |
 | `systemd/nexus-initpw.socket`, `nexus-initpw@.service` | `/usr/lib/systemd/system/` | Helper socket (group `nexus-portal`), one root instance per request |
+| `systemd/nexus-wifi-button.service` | `/usr/lib/systemd/system/` | Enabled; GPIO pins in `Environment=` |
+| `systemd/nexus-access-reset.service` | `/usr/lib/systemd/system/` | Not enabled, never started by package scripts |
 
 The user `nexus-portal` comes from `debian/nexus-captive-portal.sysusers`.
 The package's maintainer scripts ([debian/](../debian/)) divert comitup's own
@@ -149,6 +180,7 @@ upstream changed that API, `lib/nexus-portal` needs adjusting.
 ```bash
 journalctl -u comitup -u comitup-web -f     # comitup and the portal
 journalctl -u 'nexus-initpw@*'              # password helper
+journalctl -u nexus-wifi-button -t nexus-access-reset   # button, LED, reset
 journalctl -t nexus-comitup                 # the reboot callback
 comitup-cli                                 # state, saved networks, delete them
 nmcli connection show                       # what NetworkManager has saved
@@ -156,4 +188,5 @@ nmcli connection show                       # what NetworkManager has saved
 
 For detail in `/var/log/comitup.log`, set `verbose: 1` in `/usr/share/nexus/comitup.conf` on the board and `systemctl restart comitup` (the next package upgrade resets it).
 To force the hotspot again, delete the saved Wi-Fi with `comitup-cli` (or
-`nmcli connection delete <name>`) and reboot. To test the password step on a board: `sudo usermod -p '*' tridex`.
+`nmcli connection delete <name>`) and reboot — or use the reset button, which
+also locks `tridex`. To test the password step on a board: `sudo usermod -p '*' tridex`.

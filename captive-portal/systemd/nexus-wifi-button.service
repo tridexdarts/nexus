@@ -1,0 +1,39 @@
+[Unit]
+Description=Nexus Wi-Fi LED and Wi-Fi reset button
+After=dbus.service
+
+[Service]
+# The board's pins (gpioinfo). The LED line is held by this service.
+Environment=NEXUS_GPIO_CHIP=/dev/gpiochip4
+Environment=NEXUS_BUTTON_LINE=13
+Environment=NEXUS_LED_LINE=12
+Environment=NEXUS_RESET_HOLD=10
+ExecStart=/usr/lib/nexus-captive-portal/nexus-wifi-button
+Restart=on-failure
+RestartSec=3
+
+# Reads a GPIO and talks D-Bus; the reset itself runs in its own unit.
+DevicePolicy=closed
+DeviceAllow=char-gpiochip rw
+CapabilityBoundingSet=
+ProtectSystem=strict
+NoNewPrivileges=yes
+PrivateNetwork=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

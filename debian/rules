@@ -23,6 +23,13 @@ override_dh_auto_build-arch:
 	echo "$(TTYD_SHA256)  build/ttyd.download" | sha256sum -c --quiet
 	install -m 0755 build/ttyd.download build/ttyd
 
+# nexus-access-reset.service resets the board and reboots: never start it
+# from a maintainer script, only nexus-wifi-button may.
+override_dh_installsystemd:
+	dh_installsystemd -pnexus-captive-portal --no-start --no-enable nexus-access-reset.service
+	dh_installsystemd -pnexus-captive-portal nexus-initpw.socket nexus-wifi-button.service
+	dh_installsystemd --remaining-packages
+
 override_dh_auto_clean:
 	rm -rf build
 

@@ -7,7 +7,7 @@ and served as an apt repository on GitHub Pages. Boards update with
 | Package | Arch | Contents |
 |---|---|---|
 | `nexus` | all | Metapackage: depends on the four below |
-| `nexus-captive-portal` | all | comitup config, setup portal with first admin password ([captive-portal/](../../captive-portal/)) |
+| `nexus-captive-portal` | all | comitup config, setup portal with first admin password, Wi-Fi LED and reset button ([captive-portal/](../../captive-portal/)) |
 | `nexus-web-panel` | all | Command panel on port 8080 ([web-panel/](../../web-panel/)) |
 | `nexus-web-terminal` | arm64 | ttyd browser terminal on port 7681 ([web-terminal/](../../web-terminal/)), with the pinned upstream ttyd |
 | `nexus-archive-keyring` | all | Repository signing key + `/etc/apt/sources.list.d/nexus.sources` |
@@ -153,14 +153,16 @@ moves on to the real release with the next `apt upgrade`.
   it run the Nexus portal as the system user `nexus-portal` (created via
   sysusers). Upgrades from 0.1.0 remove the old generated drop-in
   `/etc/systemd/system/comitup-web.service.d/nexus-templates.conf`.
-- **Units**: enables `nexus-initpw.socket` (password helper).
+- **Units**: enables `nexus-initpw.socket` (password helper) and
+  `nexus-wifi-button.service` (LED, reset button). `nexus-access-reset.service`
+  is installed but never enabled or started by the package scripts.
 - **`/etc/network/interfaces`**: a wlan0 stanza is commented out (backup
   alongside) on every install or upgrade that finds one — normally only the
   first, unless `dietpi-config` put it back.
 - **DietPi**: removes the Wi-Fi blacklist and disables `dietpi-wifi-monitor`.
 - **Restarts**: comitup only when `comitup.conf` changed; NetworkManager only
   when the interfaces file was changed; comitup-web (if the hotspot is up)
-  on every upgrade.
+  and nexus-wifi-button on every upgrade.
 - **Leftovers** of `install.sh` (`/usr/local/sbin/nexus-comitup-callback`,
   `/etc/nexus/comitup-templates`) are removed.
 

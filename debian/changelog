@@ -7,6 +7,10 @@ nexus (0.2.0) UNRELEASED; urgency=medium
     (tridex) password before the Wi-Fi list; set by the root helper
     nexus-initpw, which only sets that password while the account is
     locked.
+  * nexus-captive-portal: Wi-Fi LED shows the setup state; holding the
+    Wi-Fi reset button for 10 s locks tridex, deletes its SSH keys and
+    saved Wi-Fi, and reboots into setup (nexus-wifi-button, nexus-
+    access-reset).
 
  -- Carsten Wesp <carsten.wesp@online.de>  Fri, 27 Nov 2026 00:58:24 +0100
 

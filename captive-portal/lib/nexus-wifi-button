@@ -1,0 +1,142 @@
+#!/usr/bin/python3
+"""Wi-Fi LED and Wi-Fi reset button of the Nexus board.
+
+LED (follows comitup's state, asked over D-Bus every 2 s):
+    slow blink (1 s on, 1 s off)   hotspot up, setup needed
+    on                             connected to Wi-Fi
+    off                            connecting, or comitup not running
+    off while the button is held, then fast blink after HOLD seconds:
+                                   reset armed, release to reset
+
+Holding the button for HOLD seconds and then releasing it starts
+nexus-access-reset.service: admin account locked again, its SSH keys and
+all saved Wi-Fi networks deleted, reboot into the setup hotspot. A shorter
+press does nothing. The button also counts when it is already held while
+the board boots.
+
+Pins come from the environment (see nexus-wifi-button.service). Both lines
+belong to this process while it runs: stop the service before driving the
+LED by hand with gpioset.
+"""
+
+import logging
+import os
+import sys
+import time
+
+import dbus
+import gpiod
+from gpiod.line import Direction, Value
+
+CHIP = os.environ.get("NEXUS_GPIO_CHIP", "/dev/gpiochip4")
+BUTTON = int(os.environ.get("NEXUS_BUTTON_LINE", "13"))
+LED = int(os.environ.get("NEXUS_LED_LINE", "12"))
+HOLD = float(os.environ.get("NEXUS_RESET_HOLD", "10"))
+
+TICK = 0.05          # main loop period
+DEBOUNCE = 3         # ticks the button must read the same before it counts
+STATE_EVERY = 2.0    # seconds between comitup state queries
+RESET_UNIT = "nexus-access-reset.service"
+
+log = logging.getLogger("nexus-wifi-button")
+
+
+class Comitup:
+    def __init__(self, bus):
+        self.bus = bus
+        self.iface = None
+
+    def state(self):
+        try:
+            if self.iface is None:
+                obj = self.bus.get_object("com.github.davesteele.comitup",
+                                          "/com/github/davesteele/comitup")
+                self.iface = dbus.Interface(obj, "com.github.davesteele.comitup")
+            # Short timeout: while this waits, the button is not read.
+            return str(self.iface.state(timeout=1.0)[0])
+        except dbus.exceptions.DBusException:
+            self.iface = None
+            return None
+
+
+def start_reset(bus):
+    systemd = bus.get_object("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
+    manager = dbus.Interface(systemd, "org.freedesktop.systemd1.Manager")
+    manager.StartUnit(RESET_UNIT, "replace")
+
+
+def led_wanted(now, wifi_state, pressed, armed):
+    if armed:
+        return int(now * 10) % 2 == 0        # 100 ms on, 100 ms off
+    if pressed:
+        return False
+    if wifi_state == "HOTSPOT":
+        return int(now) % 2 == 0             # 1 s on, 1 s off
+    return wifi_state == "CONNECTED"
+
+
+def main():
+    logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
+    if not os.path.exists(CHIP):
+        log.info("%s not found, not a Nexus board? Exiting.", CHIP)
+        return 0
+
+    bus = dbus.SystemBus()
+    wifi = Comitup(bus)
+    lines = gpiod.request_lines(
+        CHIP,
+        consumer="nexus-wifi-button",
+        config={
+            # Reads 0 while pressed: active-low, so ACTIVE means pressed.
+            BUTTON: gpiod.LineSettings(direction=Direction.INPUT, active_low=True),
+            LED: gpiod.LineSettings(direction=Direction.OUTPUT,
+                                    output_value=Value.INACTIVE),
+        },
+    )
+    log.info("watching %s line %d (button), driving line %d (LED)", CHIP, BUTTON, LED)
+
+    pressed = False          # debounced button state
+    raw_streak = 0
+    pressed_since = None
+    armed = False
+    wifi_state = wifi.state()
+    next_state = time.monotonic() + STATE_EVERY
+    led = None
+
+    with lines:
+        while True:
+            now = time.monotonic()
+
+            raw = lines.get_value(BUTTON) == Value.ACTIVE
+            raw_streak = raw_streak + 1 if raw != pressed else 0
+            if raw_streak >= DEBOUNCE:
+                pressed, raw_streak = raw, 0
+                if pressed:
+                    pressed_since = now
+                else:
+                    if armed:
+                        log.info("button released after reset hold: starting %s", RESET_UNIT)
+                        try:
+                            start_reset(bus)
+                        except dbus.exceptions.DBusException as e:
+                            log.error("could not start %s: %s", RESET_UNIT, e)
+                    pressed_since, armed = None, False
+
+            if pressed and not armed and now - pressed_since >= HOLD:
+                armed = True
+                log.info("button held %g s: reset armed, release to reset", HOLD)
+
+            if now >= next_state:
+                wifi_state = wifi.state()
+                next_state = now + STATE_EVERY
+
+            want = led_wanted(now, wifi_state, pressed, armed)
+            if want != led:
+                lines.set_value(LED, Value.ACTIVE if want else Value.INACTIVE)
+                led = want
+
+            time.sleep(TICK)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
