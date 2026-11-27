@@ -1,4 +1,4 @@
-nexus (0.2.0) UNRELEASED; urgency=medium
+nexus (0.2.0) trixie; urgency=medium
 
   * nexus-captive-portal: own setup portal (nexus-portal) in place of
     comitup's web app, running unprivileged as nexus-portal and
@@ -23,7 +23,7 @@ nexus (0.2.0) UNRELEASED; urgency=medium
   * nexus-web-panel: board card to switch the LED ring and see which
     camera ports have a camera (with nexus-board).
 
- -- Carsten Wesp <carsten.wesp@online.de>  Fri, 27 Nov 2026 00:58:24 +0100
+ -- Carsten Wesp <carsten.wesp@online.de>  Fri, 27 Nov 2026 02:40:33 +0100
 
 nexus (0.1.0) trixie; urgency=medium
 
