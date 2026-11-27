@@ -86,6 +86,7 @@ def connect_later(ssid, password):
 # --- admin password via the root helper --------------------------------------
 
 _password_set = False   # once set, it stays set until the next boot
+_first_setup = False    # password set through this portal: pages show "step 2 of 2"
 
 
 class HelperError(Exception):
@@ -136,6 +137,11 @@ def password_problem(pw, pw2):
 app = Flask(__name__, template_folder=TEMPLATES, static_folder=None)
 
 
+@app.context_processor
+def steps():
+    return {"first_setup": _first_setup}
+
+
 @app.after_request
 def no_cache(response):
     response.cache_control.max_age = 0
@@ -171,7 +177,7 @@ def index():
 
 @app.route("/password", methods=["POST"])
 def set_password():
-    global _password_set
+    global _password_set, _first_setup
     if (page := gate()) is None:
         return redirect("/", code=303)       # already set: on to the Wi-Fi list
     if page[1] != 200:
@@ -189,7 +195,7 @@ def set_password():
                              "Versuche es noch einmal.", 503)
     if reply == "ok":
         log.info("admin password set via portal")
-        _password_set = True
+        _password_set = _first_setup = True
         return redirect("/", code=303)
     if reply == "error already-set":
         _password_set = True

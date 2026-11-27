@@ -9,10 +9,13 @@
   <link rel="stylesheet" href="css/portal.css">
 </head>
 <body>
-<header><img src="img/logo.svg" alt="Tridex Darts" width="1104" height="192"></header>
+<header>
+  <img src="img/logo.svg" alt="Tridex Darts" width="1104" height="192">
+  <span class="product">Nexus</span>
+</header>
 <main>
   <div class="spinner" role="status" aria-label="Verbinde"></div>
-  <p class="eyebrow">Nexus · WLAN-Einrichtung</p>
+  <p class="eyebrow">{% if first_setup %}Schritt 2 von 2 · WLAN{% else %}WLAN-Einrichtung{% endif %}</p>
   <h1>Verbinde mit „{{ ssid }}“ …</h1>
   <p class="sub">Du kannst dieses Fenster jetzt schließen.</p>
 

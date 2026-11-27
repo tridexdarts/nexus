@@ -137,6 +137,7 @@ and wording freely; keep the contract with the app:
 | Page | Gets | Must send |
 |---|---|---|
 | `password.html` | `user`, `error` (message or none), `min_length` | `POST password` with `password` and `password2` |
+| all pages | `first_setup`: password set through the portal since it started, so the Wi-Fi pages are step 2 of 2 | — |
 | `index.html` | `points`: list of `ssid`, `ssid_encoded`, `security`, `strength` (%) | links to `confirm?ssid=<ssid_encoded>&encrypted=<security>` |
 | `confirm.html` | `ssid`, `ssid_encoded`, `encrypted`, `mode` (`single`/`router`) | `POST connect` with `ssid` (URL-encoded) and `password` |
 | `connect.html` | `ssid` | — |
