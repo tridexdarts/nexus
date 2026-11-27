@@ -16,6 +16,10 @@ nexus (0.2.0) UNRELEASED; urgency=medium
     instead of the logged-in admin; Autodarts runs in nexus-
     autodarts.service. Old nexus-autodarts@<user> instances are disabled
     on upgrade; install Autodarts again from the panel.
+  * nexus-board: new package. nexus-board.service holds the LED GPIOs:
+    the LED ring keeps its last state across reboots (on for a new
+    board), and each camera port's LED is lit while a camera is plugged
+    in. Does what the udev experiment in experiments/ tried.
 
  -- Carsten Wesp <carsten.wesp@online.de>  Fri, 27 Nov 2026 00:58:24 +0100
 

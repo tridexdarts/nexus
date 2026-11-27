@@ -8,11 +8,12 @@ and served as an apt repository on GitHub Pages. Boards update with
 |---|---|---|
 | `nexus` | all | Metapackage: depends on the four below |
 | `nexus-captive-portal` | all | comitup config, setup portal with first admin password, Wi-Fi LED and reset button ([captive-portal/](../../captive-portal/)) |
+| `nexus-board` | all | LED ring and camera port LEDs ([board/](../../board/)) |
 | `nexus-web-panel` | all | Command panel on port 8080 ([web-panel/](../../web-panel/)) |
 | `nexus-web-terminal` | arm64 | ttyd browser terminal on port 7681 ([web-terminal/](../../web-terminal/)), with the pinned upstream ttyd |
 | `nexus-archive-keyring` | all | Repository signing key + `/etc/apt/sources.list.d/nexus.sources` |
 
-All five come from one source package and share one version, the one in
+All six come from one source package and share one version, the one in
 `debian/changelog`. `nexus` pins the other components to exactly that version,
 so a board never runs a mix that was not released together.
 

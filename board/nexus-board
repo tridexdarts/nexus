@@ -1,0 +1,204 @@
+#!/usr/bin/python3
+"""LED ring and camera port LEDs of the Nexus board.
+
+    nexus-board                       show ring and cameras   (as root)
+    nexus-board ring on|off           switch the LED ring
+    nexus-board daemon                nexus-board.service
+
+The daemon owns the GPIO lines for as long as it runs: with libgpiod v2 only
+the process holding a line can be sure its level stays put.
+
+- LED ring: on or off on request. The last state is kept in
+  /var/lib/nexus-board/ring and restored at boot; a new board starts with
+  the ring on.
+- Port LEDs: one per camera port, on while a camera (a USB device with a
+  video interface, class 0x0e) is plugged into that port, directly or
+  through a hub. Checked every second, so the LEDs are right from boot on
+  without udev scripts.
+
+Requests on /run/nexus-board.sock (nexus-board.socket, root only; the web
+panel uses it too), one line each, the reply is one line of JSON:
+
+    status            -> {"ring": true, "cameras": [{"port": "USB 1", "camera": true}, ...]}
+    ring on|off       -> the same, after switching
+    anything else     -> {"error": "<reason>"}
+
+Pins come from the environment (see nexus-board.service).
+"""
+
+import glob
+import json
+import os
+import select
+import socket
+import sys
+
+SOCKET = "/run/nexus-board.sock"
+CHIP = os.environ.get("NEXUS_GPIO_CHIP", "/dev/gpiochip4")
+RING_LINE = int(os.environ.get("NEXUS_LEDRING_LINE", "8"))
+# "<label>=<USB path>:<line>", comma-separated. The USB path is the port as
+# the kernel names it (/sys/bus/usb/devices/<path>).
+PORTS = os.environ.get("NEXUS_CAMERA_PORTS", "USB 1=5-1:10,USB 2=2-1:11,USB 3=3-1:9")
+STATE_DIR = os.environ.get("STATE_DIRECTORY", "/var/lib/nexus-board")
+RING_STATE = os.path.join(STATE_DIR, "ring")
+SYSFS_USB = os.environ.get("NEXUS_SYSFS_USB", "/sys/bus/usb/devices")
+SCAN_EVERY = 1.0
+
+
+def parse_ports(spec):
+    ports = []
+    for item in spec.split(","):
+        label, _, rest = item.partition("=")
+        path, _, line = rest.rpartition(":")
+        if not label.strip() or not path or not line.isdigit():
+            sys.exit(f"nexus-board: bad NEXUS_CAMERA_PORTS entry {item!r}")
+        ports.append((label.strip(), path.strip(), int(line)))
+    return ports
+
+
+def camera_on(port_path):
+    """True if a video-class interface sits on this port or behind a hub on it."""
+    for pattern in (f"{port_path}:*", f"{port_path}.*:*"):
+        for iface in glob.glob(os.path.join(SYSFS_USB, pattern)):
+            try:
+                with open(os.path.join(iface, "bInterfaceClass"), encoding="ascii") as f:
+                    if f.read().strip() == "0e":
+                        return True
+            except OSError:
+                pass
+    return False
+
+
+def load_ring():
+    try:
+        with open(RING_STATE, encoding="ascii") as f:
+            return f.read().strip() != "off"
+    except (OSError, UnicodeDecodeError):
+        return True          # a new board starts with the ring on
+
+
+def save_ring(on):
+    tmp = RING_STATE + ".tmp"
+    with open(tmp, "w", encoding="ascii") as f:
+        f.write("on\n" if on else "off\n")
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, RING_STATE)
+
+
+class Board:
+    def __init__(self):
+        self.ports = parse_ports(PORTS)
+        self.ring = load_ring()
+        self.cameras = {label: False for label, _, _ in self.ports}
+        self.lines = None
+        if not os.path.exists(CHIP):
+            log(f"{CHIP} not found, not a Nexus board? Reporting cameras only.")
+            return
+        import gpiod
+        from gpiod.line import Direction, Value
+        self.Value = Value
+        config = {RING_LINE: gpiod.LineSettings(
+            direction=Direction.OUTPUT,
+            output_value=Value.ACTIVE if self.ring else Value.INACTIVE)}
+        for _, _, line in self.ports:
+            config[line] = gpiod.LineSettings(direction=Direction.OUTPUT,
+                                              output_value=Value.INACTIVE)
+        self.lines = gpiod.request_lines(CHIP, consumer="nexus-board", config=config)
+        log(f"LED ring ({CHIP} line {RING_LINE}) {'on' if self.ring else 'off'}; camera ports: "
+            + ", ".join(f"{label} {path} line {line}" for label, path, line in self.ports))
+
+    def set(self, line, on):
+        if self.lines is not None:
+            self.lines.set_value(line, self.Value.ACTIVE if on else self.Value.INACTIVE)
+
+    def scan(self):
+        for label, path, line in self.ports:
+            now = camera_on(path)
+            if now != self.cameras[label]:
+                self.cameras[label] = now
+                self.set(line, now)
+                log(f"{label} ({path}): camera {'connected' if now else 'gone'}")
+
+    def status(self):
+        return {"ring": self.ring if self.lines is not None else None,
+                "cameras": [{"port": label, "camera": self.cameras[label]}
+                            for label, _, _ in self.ports]}
+
+    def handle(self, request):
+        words = request.split()
+        if words == ["status"]:
+            return self.status()
+        if len(words) == 2 and words[0] == "ring" and words[1] in ("on", "off"):
+            if self.lines is None:
+                return {"error": "no-gpio"}
+            on = words[1] == "on"
+            if on != self.ring:
+                self.set(RING_LINE, on)
+                self.ring = on
+                save_ring(on)
+                log(f"LED ring {words[1]}")
+            return self.status()
+        return {"error": "unknown-command"}
+
+
+def log(msg):
+    print(msg, file=sys.stderr, flush=True)
+
+
+def daemon():
+    if os.environ.get("LISTEN_PID") != str(os.getpid()) or os.environ.get("LISTEN_FDS") != "1":
+        sys.exit("nexus-board daemon: start it through nexus-board.socket")
+    srv = socket.socket(fileno=3)
+    board = Board()
+    board.scan()
+    while True:
+        ready, _, _ = select.select([srv], [], [], SCAN_EVERY)
+        if ready:
+            conn, _ = srv.accept()
+            with conn:
+                conn.settimeout(5)
+                try:
+                    request = conn.makefile("rb").readline(64).decode("ascii", "replace").strip()
+                    conn.sendall(json.dumps(board.handle(request)).encode() + b"\n")
+                except OSError:
+                    pass
+        board.scan()
+
+
+def ask(request):
+    """One request to the daemon; returns the decoded reply. Raises OSError."""
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+        s.settimeout(10)
+        s.connect(SOCKET)
+        s.sendall(request.encode() + b"\n")
+        return json.loads(s.makefile("rb").readline(4096))
+
+
+def main(argv):
+    if argv == ["daemon"]:
+        return daemon()
+    if argv == []:
+        request = "status"
+    elif len(argv) == 2 and argv[0] == "ring" and argv[1] in ("on", "off"):
+        request = f"ring {argv[1]}"
+    else:
+        print("usage: nexus-board [ring on|off]", file=sys.stderr)
+        return 2
+    try:
+        reply = ask(request)
+    except (OSError, ValueError) as e:
+        print(f"nexus-board: {SOCKET}: {e}", file=sys.stderr)
+        return 1
+    if "error" in reply:
+        print(f"nexus-board: {reply['error']}", file=sys.stderr)
+        return 1
+    ring = {True: "on", False: "off", None: "no GPIO"}[reply["ring"]]
+    print(f"LED ring: {ring}")
+    for c in reply["cameras"]:
+        print(f"{c['port']}: {'camera' if c['camera'] else '-'}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

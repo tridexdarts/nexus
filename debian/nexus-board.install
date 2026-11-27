@@ -1,0 +1,3 @@
+board/nexus-board usr/sbin
+board/nexus-board.socket usr/lib/systemd/system
+board/nexus-board.service usr/lib/systemd/system

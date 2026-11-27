@@ -19,7 +19,8 @@ Rules-Requires-Root: no
 Package: nexus
 Section: contrib/metapackages
 Architecture: all
-Depends: nexus-captive-portal (= ${source:Version}),
+Depends: nexus-board (= ${source:Version}),
+         nexus-captive-portal (= ${source:Version}),
          nexus-web-panel (= ${source:Version}),
          nexus-web-terminal (= ${source:Version}),
          nexus-archive-keyring,
@@ -59,6 +60,19 @@ Description: Wi-Fi setup hotspot and captive portal for the Tridex Nexus PCB
  .
  Replaces /etc/comitup.conf (via dpkg-divert) and hands wlan0 from ifupdown
  to NetworkManager.
+
+Package: nexus-board
+Section: misc
+Architecture: all
+Depends: python3,
+         python3-libgpiod (>= 2),
+         ${misc:Depends}
+Description: LED ring and camera port LEDs of the Tridex Nexus PCB
+ nexus-board.service holds the board's LED GPIOs: the LED ring keeps its
+ last state across reboots (a new board starts with it on), and each
+ camera port's LED is lit while a camera is plugged into that port.
+ "nexus-board" shows the state and switches the ring through the
+ service's root-only socket.
 
 Package: nexus-web-panel
 # contrib: free itself, but runs Autodarts, which is not free software.

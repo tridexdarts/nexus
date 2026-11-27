@@ -1,0 +1,13 @@
+[Unit]
+Description=Nexus board control socket (LED ring, cameras)
+
+[Socket]
+ListenStream=/run/nexus-board.sock
+# Root only: the web panel and "nexus-board" run as root. nexus-software
+# (Autodarts) must not switch the ring.
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+
+[Install]
+WantedBy=sockets.target

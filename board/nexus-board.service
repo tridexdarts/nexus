@@ -1,0 +1,44 @@
+# Holds the LED ring and camera port LED lines: restores the ring's last
+# state at boot (on for a new board), lights each port's LED while a camera
+# is plugged in, and answers on nexus-board.socket.
+[Unit]
+Description=Nexus board LEDs (LED ring, camera ports)
+Requires=nexus-board.socket
+After=nexus-board.socket
+
+[Service]
+# The board's pins (gpioinfo): gpiochip4, 1 = LED on.
+Environment=NEXUS_GPIO_CHIP=/dev/gpiochip4
+Environment=NEXUS_LEDRING_LINE=8
+# <label>=<USB port as in /sys/bus/usb/devices>:<LED line>
+Environment="NEXUS_CAMERA_PORTS=USB 1=5-1:10,USB 2=2-1:11,USB 3=3-1:9"
+ExecStart=/usr/sbin/nexus-board daemon
+StateDirectory=nexus-board
+Restart=on-failure
+RestartSec=3
+
+DevicePolicy=closed
+DeviceAllow=char-gpiochip rw
+CapabilityBoundingSet=
+ProtectSystem=strict
+NoNewPrivileges=yes
+PrivateNetwork=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+
+[Install]
+# Started at boot, not only on the first request: it drives the LEDs.
+WantedBy=multi-user.target
