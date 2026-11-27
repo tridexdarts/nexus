@@ -48,6 +48,24 @@
       <a href="#" id="ad-logs" class="ad-logs" hidden>Protokoll anzeigen</a>
     </div>
 
+    <h2>Board</h2>
+    <div class="card" id="board-card">
+      <div class="action">
+        <div class="text">
+          <strong id="ring-state">LED-Ring …</strong>
+          <span>Bleibt so, auch nach einem Neustart.</span>
+        </div>
+        <button type="button" id="ring-btn" disabled>…</button>
+      </div>
+      <div class="action">
+        <div class="text">
+          <strong>Kameras</strong>
+          <span>Leuchtet die LED am Port, ist dort eine Kamera erkannt.</span>
+        </div>
+      </div>
+      <ul class="ports" id="ports"></ul>
+    </div>
+
     <h2>Befehl ausführen</h2>
     <form id="exec-form" class="card pad">
       <label for="command">Befehl hier einfügen</label>
@@ -106,6 +124,7 @@ function showApp(user) {
   $("who").textContent = user;
   show("app");
   loadAutodarts();
+  loadBoard();
   loadActions();
 }
 
@@ -138,6 +157,58 @@ $("logout").addEventListener("click", async (ev) => {
   $("command").value = "";
   clearTimeout(adTimer);
   showLogin();
+});
+
+// ---- Board: LED ring, cameras ----
+
+let ringOn = null;
+let boardTimer = null;
+
+function showBoard(st, error) {
+  ringOn = error || st.ring === null ? null : st.ring;
+  $("ring-state").textContent = error ? error
+    : st.ring === null ? "Kein LED-Ring gefunden."
+    : `LED-Ring ${st.ring ? "an" : "aus"}`;
+  $("ring-btn").textContent = ringOn ? "Ausschalten" : "Einschalten";
+  $("ring-btn").className = ringOn ? "secondary" : "";
+  $("ring-btn").disabled = ringOn === null;
+  const list = $("ports");
+  list.replaceChildren();
+  for (const c of (error ? [] : st.cameras)) {
+    const li = document.createElement("li");
+    const pill = document.createElement("span");
+    pill.className = "pill";
+    pill.dataset.state = c.camera ? "on" : "off";
+    pill.textContent = c.camera ? "Kamera" : "Keine Kamera";
+    li.append(c.port, pill);
+    list.append(li);
+  }
+}
+
+async function boardRequest(url, options) {
+  clearTimeout(boardTimer);
+  try {
+    const res = await fetch(url, { cache: "no-store", ...options });
+    if (res.status === 401) return showLogin("Sitzung abgelaufen. Bitte melde dich erneut an.");
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) showBoard(null, data.error || "Board nicht erreichbar.");
+    else showBoard(data);
+  } catch {
+    showBoard(null, "Board nicht erreichbar.");
+  }
+  if (!$("app-view").hidden) boardTimer = setTimeout(loadBoard, 5000);
+}
+
+function loadBoard() { return boardRequest("api/board", {}); }
+
+$("ring-btn").addEventListener("click", () => {
+  if (ringOn === null) return;
+  $("ring-btn").disabled = true;
+  boardRequest("api/board/ring", {
+    method: "POST",
+    headers: { ...HDR, "Content-Type": "application/json" },
+    body: JSON.stringify({ on: !ringOn }),
+  });
 });
 
 // ---- Autodarts ----

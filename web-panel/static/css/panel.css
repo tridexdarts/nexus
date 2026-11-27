@@ -103,3 +103,12 @@ button.secondary { background: #fff; color: var(--background); }
 button.secondary:hover { background: rgba(255, 255, 255, .85); }
 button.secondary:disabled { background: var(--muted); color: var(--muted-foreground); }
 #result[data-state="info"] .dot { background: var(--muted-foreground); }
+
+/* Board card: one row per camera port. */
+.ports { list-style: none; margin: 0; padding: 0 18px 12px; }
+.ports li {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 0; border-top: 1px solid var(--border);
+}
+.ports li:first-child { border-top: 0; }
+#board-card .action:nth-child(2) { border-bottom: 0; padding-bottom: 8px; }

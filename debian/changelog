@@ -20,6 +20,8 @@ nexus (0.2.0) UNRELEASED; urgency=medium
     the LED ring keeps its last state across reboots (on for a new
     board), and each camera port's LED is lit while a camera is plugged
     in. Does what the udev experiment in experiments/ tried.
+  * nexus-web-panel: board card to switch the LED ring and see which
+    camera ports have a camera (with nexus-board).
 
  -- Carsten Wesp <carsten.wesp@online.de>  Fri, 27 Nov 2026 00:58:24 +0100
 

@@ -31,8 +31,9 @@ sudo nexus-board               # LED ring: on / USB 1: camera / USB 2: - …
 sudo nexus-board ring off      # or on
 ```
 
-It goes through `/run/nexus-board.sock` (`nexus-board.socket`), root only,
-one request per line, JSON reply:
+The web panel shows the same in its "Board" card and switches the ring. Both
+go through `/run/nexus-board.sock` (`nexus-board.socket`), root only, one
+request per line, JSON reply:
 
 | Request | Reply |
 |---|---|

@@ -9,7 +9,8 @@ log in with the admin account (`tridex`) and its password, and either
 - **paste a command** — e.g. the install line copied from a vendor's website
   (`curl -fsSL autodarts.sh | bash -s -- --headless` from
   autodarts.com/downloads) — and press "Ausführen", or
-- **press a button** for a predefined command ("Schnellaktionen").
+- **press a button** for a predefined command ("Schnellaktionen"), or
+- **switch the LED ring** on or off and see which camera ports have a camera.
 
 Either way the page shows "Fertig" or "Fehlgeschlagen" and the output, live.
 
@@ -71,6 +72,13 @@ makes systemd skip it while Autodarts is not installed.
 The unit assumes the home is `/home/nexus-software`. Up to 0.1.0 Autodarts
 ran per admin user as `nexus-autodarts@<user>`; the upgrade disables those
 instances, and Autodarts is installed again from the panel.
+
+## Board card
+
+With [nexus-board](../board/README.md) installed, the "Board" card switches
+the LED ring and shows which camera port has a camera. The panel only talks
+to `nexus-board`'s socket; the GPIOs belong to that service. Without it the
+card says it is not installed.
 
 ## Adding a button
 

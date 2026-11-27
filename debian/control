@@ -71,8 +71,8 @@ Description: LED ring and camera port LEDs of the Tridex Nexus PCB
  nexus-board.service holds the board's LED GPIOs: the LED ring keeps its
  last state across reboots (a new board starts with it on), and each
  camera port's LED is lit while a camera is plugged into that port.
- "nexus-board" shows the state and switches the ring through the
- service's root-only socket.
+ "nexus-board" shows the state and switches the ring; the Nexus web panel
+ does the same through the service's root-only socket.
 
 Package: nexus-web-panel
 # contrib: free itself, but runs Autodarts, which is not free software.
@@ -81,6 +81,8 @@ Architecture: all
 Depends: python3,
          libcrypt1,
          ${misc:Depends}
+# The panel's board card (LED ring, cameras); without it the card says so.
+Recommends: nexus-board
 Description: Web panel for running commands on the Tridex Nexus PCB
  A web page on port 8080 for users who have never seen a terminal: log in
  with the admin account (sudo group), paste a command or press a button for
@@ -91,7 +93,8 @@ Description: Web panel for running commands on the Tridex Nexus PCB
  .
  Also runs Autodarts (installed with the official installer, pasted into the
  panel) as nexus-software in the service nexus-autodarts, started and
- enabled from the panel.
+ enabled from the panel. With nexus-board it switches the LED ring and
+ shows which camera ports have a camera.
 
 Package: nexus-web-terminal
 Section: net

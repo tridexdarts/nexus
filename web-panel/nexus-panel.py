@@ -26,6 +26,8 @@ preflight that this server never answers)
   GET  /api/autodarts/logs  last lines of its service log
   POST /api/autodarts/<op>  start|stop|restart|enable|disable|remove-app-service
                           (JSON), update (streamed)
+  GET  /api/board         {"ring", "cameras"} from nexus-board
+  POST /api/board/ring    {"on": bool} switches the LED ring
 The streamed endpoints send the output as text/plain, then
 "\\x1e" + {"exit": <code>} as the last record.
 
@@ -43,6 +45,7 @@ import os
 import pwd
 import secrets
 import signal
+import socket
 import subprocess
 import threading
 import time
@@ -244,6 +247,32 @@ def ad_remove_app_service():
 
 
 
+# -- Board: LED ring, cameras ------------------------------------------------
+#
+# nexus-board.service (package nexus-board) owns the GPIO lines and remembers
+# the ring's state; this only talks to its socket (root only).
+
+BOARD_SOCKET = "/run/nexus-board.sock"
+BOARD_ERRORS = {"no-gpio": "Kein LED-Ring gefunden."}
+
+
+def board(request):
+    """Status dict {"ring", "cameras"} from nexus-board, or an error message (str)."""
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.settimeout(10)
+            s.connect(BOARD_SOCKET)
+            s.sendall(request.encode() + b"\n")
+            reply = json.loads(s.makefile("rb").readline(4096))
+    except FileNotFoundError:
+        return "nexus-board ist nicht installiert."
+    except (OSError, ValueError) as e:
+        return f"nexus-board nicht erreichbar: {e}"
+    if "error" in reply:
+        return BOARD_ERRORS.get(reply["error"], f"nexus-board: {reply['error']}")
+    return reply
+
+
 # -- HTTP ------------------------------------------------------------------
 
 class Handler(BaseHTTPRequestHandler):
@@ -300,6 +329,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(200, {"user": user})
             if path == "/api/autodarts":
                 return self.send_json(200, ad_status())
+            if path == "/api/board":
+                st = board("status")
+                if isinstance(st, str):
+                    return self.send_json(503, {"error": st})
+                return self.send_json(200, st)
             if path == "/api/autodarts/logs":
                 r = subprocess.run(["journalctl", "-u", AD_UNIT, "-n", "60", "--no-pager",
                                     "-o", "short-iso"], capture_output=True, text=True, timeout=30)
@@ -353,6 +387,17 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/autodarts/"):
             return self.autodarts_op(user, path[len("/api/autodarts/"):])
+
+        if path == "/api/board/ring":
+            body = self.read_json()
+            on = body.get("on") if body else None
+            if not isinstance(on, bool):
+                return self.send_json(400, {"error": "on: true oder false angeben."})
+            self.log_message("LED ring %s by %s", "on" if on else "off", user)
+            st = board("ring on" if on else "ring off")
+            if isinstance(st, str):
+                return self.send_json(503, {"error": st})
+            return self.send_json(200, st)
 
         if path.startswith("/api/run/"):
             try:
