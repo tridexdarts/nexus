@@ -1,5 +1,5 @@
 # The portal runs on an offline hotspot and must serve its own web font.
 nexus-captive-portal: font-in-non-font-package [usr/share/nexus/comitup-templates/css/montserrat-latin.woff2]
 nexus-captive-portal: woff-font-in-wrong-dir [usr/share/nexus/comitup-templates/css/montserrat-latin.woff2]
-# daemon-reload after (re)writing the comitup-web drop-in; no debhelper equivalent.
+# daemon-reload after removing the old comitup-web drop-in; no debhelper equivalent.
 nexus-captive-portal: maintainer-script-calls-systemctl *

@@ -1,0 +1,264 @@
+#!/usr/bin/python3
+"""Captive portal of the Nexus setup hotspot (http://10.41.0.1/).
+
+Runs in place of comitup's own web app: comitup starts and stops
+comitup-web.service with the hotspot, and the drop-in
+comitup-web.service.d/nexus-portal.conf points that unit here. Two reasons
+for having our own app:
+
+- It runs as the unprivileged user nexus-portal instead of root.
+- On a fresh board it first asks for the password of the admin account
+  (tridex), which ships locked, and only then lists the Wi-Fi networks.
+  The check is server-side: /confirm and /connect refuse until it is set.
+
+Wi-Fi goes through comitup's D-Bus API, which any local user may call. The
+password goes to the root helper behind /run/nexus-initpw.sock
+(nexus-initpw.socket), which can do nothing but set that one password while
+the account is still locked.
+"""
+
+import logging
+import socket
+import sys
+import threading
+import urllib.parse
+
+import dbus
+from flask import Flask, redirect, render_template, request, send_from_directory
+
+TEMPLATES = "/usr/share/nexus/comitup-templates"
+HELPER_SOCKET = "/run/nexus-initpw.sock"
+PORTAL_URL = "http://10.41.0.1/"
+ADMIN_USER = "tridex"           # display only; the helper has its own copy
+MIN_PASSWORD, MAX_PASSWORD = 8, 128   # same limits as the helper
+
+COMITUP_BUS = "com.github.davesteele.comitup"
+COMITUP_PATH = "/com/github/davesteele/comitup"
+
+log = logging.getLogger("nexus-portal")
+
+
+# --- comitup over D-Bus ------------------------------------------------------
+
+_comitup = None
+
+
+def comitup(method, *args):
+    """Call a comitup D-Bus method, reconnecting once if comitup restarted."""
+    global _comitup
+    for attempt in (1, 2):
+        try:
+            if _comitup is None:
+                obj = dbus.SystemBus().get_object(COMITUP_BUS, COMITUP_PATH)
+                _comitup = dbus.Interface(obj, COMITUP_BUS)
+            return getattr(_comitup, method)(*args)
+        except dbus.exceptions.DBusException:
+            _comitup = None
+            if attempt == 2:
+                raise
+
+
+def access_points():
+    """comitup's cached scan, shaped for index.html."""
+    points = []
+    for p in comitup("access_points"):
+        ssid = str(p["ssid"])
+        points.append({
+            "ssid": ssid,
+            "ssid_encoded": urllib.parse.quote(ssid),
+            "security": str(p["security"]),
+            "strength": str(p["strength"]),
+        })
+    return points
+
+
+def connect_later(ssid, password):
+    # On a single radio the hotspot goes down as soon as comitup switches;
+    # give the "connecting" page a second to reach the phone first.
+    def run():
+        try:
+            comitup("connect", ssid, password)
+        except dbus.exceptions.DBusException as e:
+            log.error("connect to %r failed: %s", ssid, e)
+    threading.Timer(1.0, run).start()
+
+
+# --- admin password via the root helper --------------------------------------
+
+_password_set = False   # once set, it stays set until the next boot
+
+
+class HelperError(Exception):
+    pass
+
+
+def ask_helper(request_text):
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+            s.settimeout(20)
+            s.connect(HELPER_SOCKET)
+            s.sendall(request_text.encode())
+            s.shutdown(socket.SHUT_WR)
+            reply = b""
+            while chunk := s.recv(256):
+                reply += chunk
+    except OSError as e:
+        raise HelperError(f"helper unreachable: {e}") from e
+    return reply.decode(errors="replace").strip()
+
+
+def admin_password_set():
+    """True when nothing has to be set: password set, or no such account."""
+    global _password_set
+    if not _password_set:
+        status = ask_helper("status\n")
+        if status not in ("set", "unset", "absent"):
+            raise HelperError(f"unexpected status {status!r}")
+        _password_set = status != "unset"
+    return _password_set
+
+
+def password_problem(pw, pw2):
+    """German error for the form, or None. The helper checks again."""
+    if pw != pw2:
+        return "Die beiden Passwörter stimmen nicht überein."
+    if len(pw) < MIN_PASSWORD:
+        return f"Das Passwort braucht mindestens {MIN_PASSWORD} Zeichen."
+    if len(pw) > MAX_PASSWORD:
+        return f"Das Passwort darf höchstens {MAX_PASSWORD} Zeichen haben."
+    if any(ord(c) < 32 or ord(c) == 127 for c in pw):
+        return "Das Passwort enthält ungültige Zeichen."
+    return None
+
+
+# --- web app -----------------------------------------------------------------
+
+app = Flask(__name__, template_folder=TEMPLATES, static_folder=None)
+
+
+@app.after_request
+def no_cache(response):
+    response.cache_control.max_age = 0
+    response.cache_control.no_store = True
+    return response
+
+
+def password_page(error=None, status=200):
+    return render_template("password.html", user=ADMIN_USER, error=error,
+                           min_length=MIN_PASSWORD), status
+
+
+def gate():
+    """Response that replaces the page while the password is unset, else None."""
+    try:
+        if admin_password_set():
+            return None
+    except HelperError as e:
+        log.error("%s", e)
+        return password_page("Nexus kann das Passwort gerade nicht prüfen. "
+                             "Lade die Seite in einer Minute neu.", 503)
+    return password_page()
+
+
+@app.route("/")
+def index():
+    if (page := gate()) is not None:
+        return page
+    points = access_points()
+    log.info("index: %d networks", len(points))
+    return render_template("index.html", points=points)
+
+
+@app.route("/password", methods=["POST"])
+def set_password():
+    global _password_set
+    if (page := gate()) is None:
+        return redirect("/", code=303)       # already set: on to the Wi-Fi list
+    if page[1] != 200:
+        return page                          # helper unreachable
+
+    pw = request.form.get("password", "")
+    if error := password_problem(pw, request.form.get("password2", "")):
+        return password_page(error, 400)
+
+    try:
+        reply = ask_helper(f"set\n{pw}\n")
+    except HelperError as e:
+        log.error("%s", e)
+        return password_page("Das Passwort konnte nicht gespeichert werden. "
+                             "Versuche es noch einmal.", 503)
+    if reply == "ok":
+        log.info("admin password set via portal")
+        _password_set = True
+        return redirect("/", code=303)
+    if reply == "error already-set":
+        _password_set = True
+        return redirect("/", code=303)
+    log.error("helper refused the password: %s", reply)
+    if reply == "error invalid":
+        return password_page("Dieses Passwort wird nicht akzeptiert. "
+                             "Wähle ein anderes.", 400)
+    return password_page("Das Passwort konnte nicht gespeichert werden. "
+                         "Versuche es noch einmal.", 500)
+
+
+@app.route("/confirm")
+def confirm():
+    if gate() is not None:
+        return redirect("/", code=303)
+    ssid = request.args.get("ssid", "")
+    mode = str(comitup("get_info")["imode"])
+    log.info("confirm: %r (%s)", ssid, mode)
+    return render_template(
+        "confirm.html",
+        ssid=ssid,
+        ssid_encoded=urllib.parse.quote(ssid),
+        encrypted=request.args.get("encrypted", "unencrypted"),
+        mode=mode,
+    )
+
+
+@app.route("/connect", methods=["POST"])
+def connect():
+    if gate() is not None:
+        return redirect("/", code=303)
+    ssid = urllib.parse.unquote(request.form.get("ssid", ""))
+    if not ssid:
+        return redirect("/", code=303)
+    log.info("connect: %r", ssid)
+    connect_later(ssid, request.form.get("password", ""))
+    return render_template("connect.html", ssid=ssid)
+
+
+@app.route("/img/<path:path>")
+def images(path):
+    return send_from_directory(f"{TEMPLATES}/images", path)
+
+
+@app.route("/css/<path:path>")
+def css(path):
+    return send_from_directory(f"{TEMPLATES}/css", path)
+
+
+@app.route("/js/<path:path>")
+def js(path):
+    return send_from_directory(f"{TEMPLATES}/js", path)
+
+
+# Everything else, e.g. the phones' connectivity checks
+# (/generate_204, /hotspot-detect.html): redirecting is what makes them
+# open the portal.
+@app.route("/<path:path>")
+def catch_all(path):
+    return redirect(PORTAL_URL, code=302)
+
+
+def main():
+    logging.basicConfig(level=logging.INFO, stream=sys.stderr,
+                        format="%(levelname)s %(message)s")
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
+    app.run(host="0.0.0.0", port=80, threaded=True)
+
+
+if __name__ == "__main__":
+    main()

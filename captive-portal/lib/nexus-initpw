@@ -1,0 +1,95 @@
+#!/usr/bin/python3
+"""Sets the first password of the Nexus admin account, and nothing else.
+
+Runs as root, one instance per connection on /run/nexus-initpw.sock
+(nexus-initpw.socket, Accept=yes; only the group nexus-portal may connect).
+The connection is stdin/stdout. Requests, one line each:
+
+    status              -> "set" | "unset" | "absent"
+    set\\n<password>     -> "ok" | "error already-set" | "error invalid"
+                           | "error absent" | "error failed"
+
+The account name is fixed here, never taken from the client. "set" only
+works while the account has no usable password: "*" or "!" in /etc/shadow
+(how the image ships it, and what nexus-access-reset puts back) or empty.
+So whoever controls the portal can set the password once, but cannot change
+an existing one or touch any other account.
+"""
+
+import fcntl
+import subprocess
+import sys
+
+USER = "tridex"
+SHADOW = "/etc/shadow"
+LOCK = "/run/lock/nexus-initpw.lock"
+MIN_PASSWORD, MAX_PASSWORD = 8, 128
+UNSET = {"", "*", "!", "!*"}
+
+
+def shadow_hash():
+    """The account's password field, or None if there is no such account."""
+    with open(SHADOW, encoding="utf-8") as f:
+        for line in f:
+            fields = line.rstrip("\n").split(":")
+            if fields[0] == USER and len(fields) > 1:
+                return fields[1]
+    return None
+
+
+def status():
+    h = shadow_hash()
+    if h is None:
+        return "absent"
+    return "unset" if h in UNSET else "set"
+
+
+def valid(pw):
+    return (MIN_PASSWORD <= len(pw) <= MAX_PASSWORD
+            and not any(ord(c) < 32 or ord(c) == 127 for c in pw))
+
+
+def set_password(raw):
+    try:
+        pw = raw.decode("utf-8").removesuffix("\n")
+    except UnicodeDecodeError:
+        return "error invalid"
+    if not valid(pw):
+        return "error invalid"
+
+    # Two portal requests at once must not both see "unset".
+    with open(LOCK, "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        st = status()
+        if st == "absent":
+            return "error absent"
+        if st == "set":
+            return "error already-set"
+        # chpasswd splits at the first ":", so one in the password is fine.
+        r = subprocess.run(["chpasswd"], input=f"{USER}:{pw}\n".encode(),
+                           stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        if r.returncode != 0:
+            print(f"chpasswd failed: {r.stderr.decode(errors='replace').strip()}",
+                  file=sys.stderr)
+            return "error failed"
+    print(f"first password of {USER} set via the setup portal", file=sys.stderr)
+    return "ok"
+
+
+def main():
+    stdin = sys.stdin.buffer
+    command = stdin.readline(16).strip()
+    if command == b"status":
+        reply = status()
+    elif command == b"set":
+        # 4 bytes per character at most in UTF-8, plus the newline.
+        raw = stdin.readline(MAX_PASSWORD * 4 + 2)
+        reply = set_password(raw)
+    else:
+        reply = "error unknown-command"
+    sys.stdout.write(reply + "\n")
+    sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    main()

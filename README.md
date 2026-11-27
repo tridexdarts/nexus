@@ -7,7 +7,7 @@ and then update with `apt upgrade`.
 
 | Directory | Contents | Package |
 |---|---|---|
-| [captive-portal/](captive-portal/) | Wi-Fi setup: hotspot + captive portal via comitup | `nexus-captive-portal` |
+| [captive-portal/](captive-portal/) | Wi-Fi setup: hotspot + captive portal via comitup, first admin password | `nexus-captive-portal` |
 | [web-panel/](web-panel/) | Web page (port 8080) to paste commands or press buttons, for non-technical users | `nexus-web-panel` |
 | [web-terminal/](web-terminal/) | Terminal in the browser (ttyd, port 7681) | `nexus-web-terminal` |
 | [experiments/](experiments/) | USB-port → GPIO trigger via udev | — |

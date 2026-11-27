@@ -3,7 +3,9 @@ Source: nexus
 Section: contrib/net
 Priority: optional
 Maintainer: Carsten Wesp <carsten.wesp@online.de>
-Build-Depends: debhelper-compat (= 13)
+Build-Depends: debhelper-compat (= 13),
+# Creates the user nexus-portal (debian/nexus-captive-portal.sysusers).
+               dh-sequence-installsysusers
 Build-Depends-Indep: gnupg
 # nexus-web-terminal downloads the pinned ttyd release (debian/rules).
 Build-Depends-Arch: curl,
@@ -36,12 +38,19 @@ Architecture: all
 Pre-Depends: comitup
 Depends: network-manager,
          dbus,
+         passwd,
+         python3,
+         python3-dbus,
+         python3-flask,
          ${misc:Depends}
 Description: Wi-Fi setup hotspot and captive portal for the Tridex Nexus PCB
  When the board cannot join a known network it opens the hotspot
  "Nexus-<nnn>" with a captive portal that lists nearby networks and takes
- the password. Built on comitup; this package provides
- its configuration and the Nexus-branded portal pages.
+ the password. On a fresh board the portal first asks for the password of
+ the admin account "tridex", which ships locked. Built on comitup; this
+ package provides its configuration and the Nexus portal, which runs as an
+ unprivileged user and sets the password through a root helper that can
+ set nothing else.
  .
  Replaces /etc/comitup.conf (via dpkg-divert) and hands wlan0 from ifupdown
  to NetworkManager.

@@ -1,3 +1,15 @@
+nexus (0.2.0) UNRELEASED; urgency=medium
+
+  * nexus-captive-portal: own setup portal (nexus-portal) in place of
+    comitup's web app, running unprivileged as nexus-portal and
+    reachable only from the hotspot.
+  * nexus-captive-portal: on a fresh board the portal asks for the admin
+    (tridex) password before the Wi-Fi list; set by the root helper
+    nexus-initpw, which only sets that password while the account is
+    locked.
+
+ -- Carsten Wesp <carsten.wesp@online.de>  Fri, 27 Nov 2026 00:58:24 +0100
+
 nexus (0.1.0) trixie; urgency=medium
 
   * First Debian packaging: nexus-captive-portal, nexus-web-panel,

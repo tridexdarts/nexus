@@ -1,0 +1,36 @@
+# One instance per connection on /run/nexus-initpw.sock. Runs as root because
+# it writes /etc/shadow; what it may write is limited by the program itself:
+# only the first password of the admin account (see nexus-initpw).
+[Unit]
+Description=Nexus first admin password helper
+CollectMode=inactive-or-failed
+
+[Service]
+ExecStart=/usr/lib/nexus-captive-portal/nexus-initpw
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+RuntimeMaxSec=20
+
+# chpasswd (pam_unix) rewrites /etc/shadow via a temporary file it chowns
+# to root:shadow; /run/lock holds the helper's own lock.
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE CAP_FOWNER
+ProtectSystem=strict
+ReadWritePaths=/etc /run/lock
+NoNewPrivileges=yes
+PrivateNetwork=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+SystemCallArchitectures=native

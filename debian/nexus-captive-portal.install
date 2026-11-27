@@ -1,3 +1,9 @@
 captive-portal/bin/nexus-comitup-callback usr/sbin
 captive-portal/etc/comitup.conf usr/share/nexus
 captive-portal/templates/* usr/share/nexus/comitup-templates
+captive-portal/lib/nexus-portal usr/lib/nexus-captive-portal
+captive-portal/lib/nexus-initpw usr/lib/nexus-captive-portal
+captive-portal/systemd/comitup-web.service.d usr/lib/systemd/system
+captive-portal/systemd/nexus-initpw.socket usr/lib/systemd/system
+# Template, one instance per connection on the socket.
+captive-portal/systemd/nexus-initpw@.service usr/lib/systemd/system

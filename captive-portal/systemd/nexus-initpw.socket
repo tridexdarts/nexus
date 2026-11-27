@@ -1,0 +1,14 @@
+[Unit]
+Description=Nexus first admin password helper socket
+
+[Socket]
+ListenStream=/run/nexus-initpw.sock
+# Only the setup portal (user nexus-portal) may connect.
+SocketUser=root
+SocketGroup=nexus-portal
+SocketMode=0660
+Accept=yes
+MaxConnections=4
+
+[Install]
+WantedBy=sockets.target
