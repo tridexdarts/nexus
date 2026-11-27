@@ -4,7 +4,7 @@ For users who have never seen a terminal. Open
 
     http://<board-ip>:8080/
 
-log in with the board's user and password, and either
+log in with the admin account (`tridex`) and its password, and either
 
 - **paste a command** — e.g. the install line copied from a vendor's website
   (`curl -fsSL autodarts.sh | bash -s -- --headless` from
@@ -29,22 +29,31 @@ after 30 minutes idle, 12 hours at most, and on every service restart.
 
 | | Runs as | Shell | Directory |
 |---|---|---|---|
-| Pasted command | the logged-in user | `bash -c` (so `bash <(curl …)` works) | user's home |
+| Pasted command | `nexus-software` | `bash -c` (so `bash <(curl …)` works) | `/home/nexus-software` |
+| Autodarts | `nexus-software` | — | `/home/nexus-software` |
 | Button | root | `sh -c` | `/` |
+| The panel itself | root | | |
 
-Pasted commands run as the user on purpose: installers like Autodarts' refuse
-to need sudo and install into `~/.local`. The user needs a home directory
-(`sudo mkhomedir_helper <user>` if missing). Every command run is logged with
-the user name (`journalctl -u nexus-panel`).
+`nexus-software` is a system user (created by the package via sysusers) with
+no sudo, no password and no login shell; its group `video` gives Autodarts
+the cameras. Third-party software lives there instead of under the admin
+account: under `tridex` an installer or a compromised app could change
+`~/.bashrc` or alias `sudo` and catch the admin password the next time it is
+typed. Installers like Autodarts' need no sudo and install into `~/.local`,
+so they work unchanged. A pasted `sudo …` fails on purpose: admin work goes
+through the buttons (commands only root can define) or the terminal.
+
+Every command run is logged with the admin who started it
+(`journalctl -u nexus-panel`). In the terminal, act as that user with
+`sudo -u nexus-software bash`.
 
 ## Autodarts
 
 The official installer (`curl -fsSL autodarts.sh | bash -s -- --headless`,
-pasted into the command box) puts Autodarts into `~/.local` of the logged-in
-user and sets up no service. The panel's Autodarts card takes it from there,
-with [nexus-autodarts@.service](nexus-autodarts@.service): a system unit
-running `autodarts run` as that user (instance = user name, e.g.
-`nexus-autodarts@radxa`).
+pasted into the command box) puts Autodarts into `~/.local` of
+`nexus-software` and sets up no service. The panel's Autodarts card takes it
+from there, with [nexus-autodarts.service](nexus-autodarts.service): a
+system unit running `autodarts run` as `nexus-software`.
 
 | Card shows | Buttons |
 |---|---|
@@ -59,7 +68,9 @@ login (no `loginctl enable-linger`), the panel controls it as root, and its
 name cannot collide with the app's own `autodarts.service` user unit. `ConditionPathExists`
 makes systemd skip it while Autodarts is not installed.
 
-The unit assumes the home is `/home/<user>`.
+The unit assumes the home is `/home/nexus-software`. Up to 0.1.0 Autodarts
+ran per admin user as `nexus-autodarts@<user>`; the upgrade disables those
+instances, and Autodarts is installed again from the panel.
 
 ## Adding a button
 
@@ -113,7 +124,10 @@ sudo apt install nexus-web-panel        # or "nexus" for everything
 | `static/` + the captive portal's stylesheet, font and logo | `/usr/share/nexus-panel/static/` |
 | `actions.json` | `/usr/share/nexus-panel/`, copied to `/etc/nexus/actions.json` if that is missing — never overwritten afterwards |
 | `nexus-panel.service` | `/usr/lib/systemd/system/` (enabled and started on install) |
-| `nexus-autodarts@.service` | `/usr/lib/systemd/system/` (template, not enabled: the Autodarts card does that) |
+| `nexus-autodarts.service` | `/usr/lib/systemd/system/` (not enabled: the Autodarts card does that) |
+
+The package also creates the user `nexus-software` (sysusers) and its home
+`/home/nexus-software` (tmpfiles).
 
 Python standard library only.
 
@@ -138,6 +152,6 @@ Python standard library only.
 ```bash
 systemctl status nexus-panel
 journalctl -u nexus-panel -f     # which action ran, with exit code
-journalctl -u nexus-autodarts@radxa -f
-systemctl status nexus-autodarts@radxa
+journalctl -u nexus-autodarts -f
+systemctl status nexus-autodarts
 ```

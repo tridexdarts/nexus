@@ -1,0 +1,2 @@
+# Home of nexus-software: installers like Autodarts' install into ~/.local.
+d /home/nexus-software 0750 nexus-software nexus-software -

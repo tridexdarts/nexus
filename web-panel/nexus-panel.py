@@ -1,11 +1,15 @@
 #!/usr/bin/python3
 """Nexus panel: a web page to run commands on the board without a terminal.
 
-After logging in with a system account, users can
+After logging in with an admin account (group sudo), users can
   - press buttons for predefined commands (root-owned /etc/nexus/actions.json,
     run as root), and
   - paste a command, e.g. an install line copied from a vendor's website
-    (run as the logged-in user, in their home directory, with bash).
+    (run as the unprivileged user nexus-software, in its home, with bash).
+
+Third-party software such as Autodarts lives under nexus-software, never
+under the admin account: it has no sudo and no password, so an installer or
+a compromised app cannot reach the admin's sudo.
 
 Endpoints (all /api/* except login need a session; POSTs need the
 X-Nexus-Panel header, which other websites cannot send without a CORS
@@ -17,8 +21,8 @@ preflight that this server never answers)
   GET  /api/session       {"user"}
   GET  /api/actions       [{id, title, description, confirm}] — no commands
   POST /api/run/<id>      runs a predefined action as root
-  POST /api/exec          {"command"} runs it as the logged-in user
-  GET  /api/autodarts     Autodarts status for the logged-in user
+  POST /api/exec          {"command"} runs it as nexus-software
+  GET  /api/autodarts     Autodarts status (nexus-autodarts.service)
   GET  /api/autodarts/logs  last lines of its service log
   POST /api/autodarts/<op>  start|stop|restart|enable|disable|remove-app-service
                           (JSON), update (streamed)
@@ -49,6 +53,7 @@ from pathlib import Path
 RECORD_SEP = b"\x1e"
 DEFAULT_TIMEOUT = 30 * 60          # seconds; installs can take a while
 LOGIN_GROUP = "sudo"               # only admins: the buttons run as root
+SOFTWARE_USER = "nexus-software"   # pasted commands and Autodarts run as this
 SESSION_IDLE = 30 * 60             # log out after 30 min without requests
 SESSION_MAX = 12 * 3600
 MAX_FAILURES, FAILURE_WINDOW = 5, 5 * 60   # per client IP
@@ -153,7 +158,8 @@ def root_popen_args():
     }
 
 
-def user_popen_args(user):
+def software_popen_args():
+    user = SOFTWARE_USER
     pw = pwd.getpwnam(user)
     home = pw.pw_dir if os.path.isdir(pw.pw_dir) else "/"
     return {
@@ -161,27 +167,23 @@ def user_popen_args(user):
         "user": pw.pw_uid,
         "group": pw.pw_gid,
         "extra_groups": os.getgrouplist(user, pw.pw_gid),
+        # SHELL: its login shell is nologin, but installers want a real one.
         "env": {"PATH": f"{pw.pw_dir}/.local/bin:{BASE_PATH}", "LANG": "C.UTF-8",
                 "HOME": pw.pw_dir, "USER": user, "LOGNAME": user,
-                "SHELL": pw.pw_shell or "/bin/bash", "TERM": "dumb"},
+                "SHELL": "/bin/bash", "TERM": "dumb"},
     }
 
 
 # -- Autodarts --------------------------------------------------------------
 #
-# The official installer puts Autodarts into ~/.local of the user who ran it
-# and sets up no service. nexus-autodarts@<user>.service (installed next to
-# this panel) runs `autodarts run` for that user.
+# The official installer, pasted into the command box, puts Autodarts into
+# ~/.local of nexus-software and sets up no service. nexus-autodarts.service
+# (installed next to this panel) runs `autodarts run` as nexus-software.
 
 _version_cache = {}
 
-
-def ad_unit(user):
-    return f"nexus-autodarts@{user}.service"
-
-
-def ad_binary(user):
-    return f"/home/{user}/.local/bin/autodarts"   # fixed by the unit's ExecStart
+AD_UNIT = "nexus-autodarts.service"
+AD_BINARY = f"/home/{SOFTWARE_USER}/.local/bin/autodarts"   # fixed by the unit's ExecStart
 
 
 def systemctl(*args):
@@ -189,15 +191,15 @@ def systemctl(*args):
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
-def app_service_file(user):
+def app_service_file():
     """The user unit Autodarts' own Service section writes, if any."""
-    home = pwd.getpwnam(user).pw_dir
+    home = pwd.getpwnam(SOFTWARE_USER).pw_dir
     path = f"{home}/.config/systemd/user/autodarts.service"
     return path if os.path.exists(path) else None
 
 
-def ad_version(user):
-    path = ad_binary(user)
+def ad_version():
+    path = AD_BINARY
     try:
         key = (path, os.stat(path).st_mtime)
     except OSError:
@@ -205,7 +207,7 @@ def ad_version(user):
     if key not in _version_cache:
         try:
             r = subprocess.run([path, "--version"], stdin=subprocess.DEVNULL, capture_output=True,
-                               text=True, timeout=15, **user_popen_args(user))
+                               text=True, timeout=15, **software_popen_args())
             lines = (r.stdout or r.stderr).strip().splitlines()
             _version_cache[key] = lines[0][:80] if lines else "?"
         except (OSError, subprocess.SubprocessError):
@@ -213,26 +215,25 @@ def ad_version(user):
     return _version_cache[key]
 
 
-def ad_status(user):
-    unit = ad_unit(user)
-    installed = os.path.exists(ad_binary(user))
+def ad_status():
+    installed = os.path.exists(AD_BINARY)
     return {
         "installed": installed,
-        "version": ad_version(user) if installed else None,
-        "enabled": systemctl("is-enabled", unit)[1] == "enabled",
-        "active": systemctl("is-active", unit)[1],   # active, activating, failed, inactive …
-        "app_service": bool(app_service_file(user)),
+        "version": ad_version() if installed else None,
+        "enabled": systemctl("is-enabled", AD_UNIT)[1] == "enabled",
+        "active": systemctl("is-active", AD_UNIT)[1],   # active, activating, failed, inactive …
+        "app_service": bool(app_service_file()),
         "busy": run_lock.locked(),
     }
 
 
-def ad_remove_app_service(user):
+def ad_remove_app_service():
     """Remove the user unit set up from Autodarts' own Service section, so the
     board does not run twice. Stops it first if the user's manager is up."""
-    path = app_service_file(user)
+    path = app_service_file()
     if not path:
         return 0, ""
-    subprocess.run(["systemctl", f"--machine={user}@.host", "--user", "disable", "--now",
+    subprocess.run(["systemctl", f"--machine={SOFTWARE_USER}@.host", "--user", "disable", "--now",
                     "autodarts.service"], capture_output=True, timeout=60)
     base = os.path.dirname(path)
     for entry in [path] + [os.path.join(base, d, "autodarts.service")
@@ -298,9 +299,9 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/session":
                 return self.send_json(200, {"user": user})
             if path == "/api/autodarts":
-                return self.send_json(200, ad_status(user))
+                return self.send_json(200, ad_status())
             if path == "/api/autodarts/logs":
-                r = subprocess.run(["journalctl", "-u", ad_unit(user), "-n", "60", "--no-pager",
+                r = subprocess.run(["journalctl", "-u", AD_UNIT, "-n", "60", "--no-pager",
                                     "-o", "short-iso"], capture_output=True, text=True, timeout=30)
                 return self.send_body(200, r.stdout.strip() or "(noch keine Einträge)")
             if path == "/api/actions":
@@ -347,8 +348,8 @@ class Handler(BaseHTTPRequestHandler):
             command = command.strip() if isinstance(command, str) else ""
             if not command:
                 return self.send_body(400, "Kein Befehl angegeben.")
-            label = f"exec by {user}: {command!r}"
-            return self.run(["/bin/bash", "-c", command], user_popen_args(user), label, DEFAULT_TIMEOUT)
+            label = f"exec by {user} as {SOFTWARE_USER}: {command!r}"
+            return self.run(["/bin/bash", "-c", command], software_popen_args(), label, DEFAULT_TIMEOUT)
 
         if path.startswith("/api/autodarts/"):
             return self.autodarts_op(user, path[len("/api/autodarts/"):])
@@ -367,7 +368,7 @@ class Handler(BaseHTTPRequestHandler):
         return self.send_body(404, "Nicht gefunden")
 
     def autodarts_op(self, user, op):
-        unit = ad_unit(user)
+        unit = AD_UNIT
 
         if op == "update":
             def restart_if_running():
@@ -375,10 +376,10 @@ class Handler(BaseHTTPRequestHandler):
                     return ""
                 code, out = systemctl("restart", unit)
                 return "\nAutodarts neu gestartet.\n" if code == 0 else f"\nNeustart fehlgeschlagen: {out}\n"
-            if not os.path.exists(ad_binary(user)):
+            if not os.path.exists(AD_BINARY):
                 return self.send_body(409, "Autodarts ist nicht installiert.")
             return self.run(["/bin/bash", "-c", '"$HOME/.local/bin/autodarts" update'],
-                            user_popen_args(user), f"autodarts update by {user}", DEFAULT_TIMEOUT,
+                            software_popen_args(), f"autodarts update by {user}", DEFAULT_TIMEOUT,
                             after=restart_if_running)
 
         actions = {
@@ -390,13 +391,13 @@ class Handler(BaseHTTPRequestHandler):
         if run_lock.locked():
             return self.send_json(409, {"error": "Es läuft gerade ein Befehl. Bitte warte, bis er fertig ist."})
         if op in ("start", "restart", "enable"):
-            if not os.path.exists(ad_binary(user)):
+            if not os.path.exists(AD_BINARY):
                 return self.send_json(409, {"error": "Autodarts ist nicht installiert."})
-            if app_service_file(user):
+            if app_service_file():
                 return self.send_json(409, {"error": "Autodarts hat schon einen eigenen Dienst aus der App. "
                                                      "Entferne ihn zuerst, sonst läuft es doppelt."})
         self.log_message("autodarts %s by %s", op, user)
-        code, out = ad_remove_app_service(user) if op == "remove-app-service" else systemctl(*actions[op])
+        code, out = ad_remove_app_service() if op == "remove-app-service" else systemctl(*actions[op])
         if code != 0:
             return self.send_json(500, {"error": out or f"systemctl {op} fehlgeschlagen"})
         return self.send_json(200, {"ok": True, "message": out})

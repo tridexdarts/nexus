@@ -69,12 +69,15 @@ Depends: python3,
          ${misc:Depends}
 Description: Web panel for running commands on the Tridex Nexus PCB
  A web page on port 8080 for users who have never seen a terminal: log in
- with a board account (sudo group), paste a command or press a button for a
- predefined one, and watch the output live. Buttons are defined in
- /etc/nexus/actions.json. Unreachable from the open setup hotspot.
+ with the admin account (sudo group), paste a command or press a button for
+ a predefined one, and watch the output live. Buttons are defined in
+ /etc/nexus/actions.json and run as root. Pasted commands run as the
+ unprivileged user nexus-software (no sudo, no password). Unreachable from
+ the open setup hotspot.
  .
- Also runs Autodarts (installed by the user with the official installer) as
- the service nexus-autodarts@<user>, started and enabled from the panel.
+ Also runs Autodarts (installed with the official installer, pasted into the
+ panel) as nexus-software in the service nexus-autodarts, started and
+ enabled from the panel.
 
 Package: nexus-web-terminal
 Section: net

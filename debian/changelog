@@ -11,6 +11,11 @@ nexus (0.2.0) UNRELEASED; urgency=medium
     Wi-Fi reset button for 10 s locks tridex, deletes its SSH keys and
     saved Wi-Fi, and reboots into setup (nexus-wifi-button, nexus-
     access-reset).
+  * nexus-web-panel: pasted commands and Autodarts run as the new
+    unprivileged user nexus-software (no sudo, no password, group video)
+    instead of the logged-in admin; Autodarts runs in nexus-
+    autodarts.service. Old nexus-autodarts@<user> instances are disabled
+    on upgrade; install Autodarts again from the panel.
 
  -- Carsten Wesp <carsten.wesp@online.de>  Fri, 27 Nov 2026 00:58:24 +0100
 

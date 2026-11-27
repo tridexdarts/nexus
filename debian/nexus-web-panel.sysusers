@@ -1,0 +1,4 @@
+# Runs pasted commands from the panel and Autodarts: no sudo, no password,
+# no login shell. video: the cameras.
+u nexus-software - "Nexus software (Autodarts)" /home/nexus-software /usr/sbin/nologin
+m nexus-software video

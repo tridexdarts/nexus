@@ -10,3 +10,4 @@
 /debian/nexus/
 /debian/nexus-*/
 /debian/tmp/
+__pycache__/

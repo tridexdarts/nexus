@@ -1,7 +1,7 @@
 web-panel/nexus-panel.py usr/lib/nexus-panel
 web-panel/nexus-panel.service usr/lib/systemd/system
-# Template, not enabled on install: the panel enables it per user.
-web-panel/nexus-autodarts@.service usr/lib/systemd/system
+# Not enabled on install: the panel's Autodarts card does that.
+web-panel/nexus-autodarts.service usr/lib/systemd/system
 web-panel/actions.json usr/share/nexus-panel
 web-panel/static/index.html usr/share/nexus-panel/static
 web-panel/static/css/panel.css usr/share/nexus-panel/static/css

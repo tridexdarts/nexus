@@ -18,13 +18,24 @@ case "$1" in
                 systemctl daemon-reload || true
             fi
         fi
-        # Same for the Autodarts template. Enabled instances keep their
-        # .wants links; systemd resolves those by name to the packaged unit.
+        # Up to 0.1.0 Autodarts ran per user as nexus-autodarts@<user>, from a
+        # template in /etc (install.sh) or /usr/lib (package). It now runs as
+        # nexus-software in nexus-autodarts.service. Stop and disable the old
+        # instances while their template still exists; Autodarts is then
+        # installed anew from the panel.
+        for link in /etc/systemd/system/*.wants/nexus-autodarts@*.service; do
+            [ -L "$link" ] || continue
+            unit=${link##*/}
+            if [ -d /run/systemd/system ]; then
+                systemctl disable --now "$unit" >/dev/null 2>&1 || true
+            fi
+            rm -f "$link"
+        done
         if [ -f /etc/systemd/system/nexus-autodarts@.service ] && [ ! -L /etc/systemd/system/nexus-autodarts@.service ]; then
             rm -f /etc/systemd/system/nexus-autodarts@.service
-            if [ -d /run/systemd/system ]; then
-                systemctl daemon-reload || true
-            fi
+        fi
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload || true
         fi
         ;;
 esac

@@ -1,0 +1,36 @@
+# Autodarts board daemon, controlled from the Nexus panel.
+#
+# The official installer (autodarts.sh), pasted into the panel's command box,
+# runs as nexus-software and puts Autodarts into its ~/.local; it sets up no
+# service. This unit runs it as a system service with User=, so it starts at
+# boot without anyone logging in (a user unit would need lingering). It is
+# called nexus-autodarts so it never collides with the autodarts.service user
+# unit the app itself can set up.
+#
+# nexus-software has no sudo and no password: Autodarts cannot reach the
+# admin account. Its group video gives it the cameras.
+#
+# Not installed yet? Then systemd skips the unit (ConditionPathExists) —
+# enabling it before installing Autodarts is harmless. Not enabled by the
+# package: the panel's Autodarts card does that.
+
+[Unit]
+Description=Autodarts board
+Documentation=https://autodarts.com/downloads
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/home/nexus-software/.local/bin/autodarts
+
+[Service]
+User=nexus-software
+# User= also loads the supplementary groups, e.g. video for the cameras.
+WorkingDirectory=~
+ExecStart=/home/nexus-software/.local/bin/autodarts run
+Restart=always
+RestartSec=5
+# `autodarts update` swaps the files in place; give a restart a moment.
+TimeoutStopSec=20
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

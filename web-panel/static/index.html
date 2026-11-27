@@ -54,7 +54,7 @@
       <textarea id="command" rows="3" autocapitalize="off" autocorrect="off" spellcheck="false"
                 placeholder="z. B. den Befehl von autodarts.com/downloads"></textarea>
       <p class="hint small">Kopiere den Befehl von der Webseite des Herstellers und füge ihn hier ein
-         (lange tippen → Einfügen, oder Strg+V). Er läuft als Benutzer <strong class="who-name"></strong>.</p>
+         (lange tippen → Einfügen, oder Strg+V). Er läuft als Benutzer <strong>nexus-software</strong>, ohne Administratorrechte.</p>
       <div><button type="submit">Ausführen</button></div>
     </form>
 
@@ -104,7 +104,6 @@ function showLogin(message) {
 
 function showApp(user) {
   $("who").textContent = user;
-  for (const el of document.querySelectorAll(".who-name")) el.textContent = user;
   show("app");
   loadAutodarts();
   loadActions();
